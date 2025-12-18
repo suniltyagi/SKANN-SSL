@@ -1,4 +1,6 @@
-*.npy
+
 __pycache__/
-*.pt
 .ipynb_checkpoints/
+*.pt
+*.pth
+# *.npy  <-- REMOVED (Now Git will see your data)
