@@ -1,222 +1,242 @@
-# SKANN-SSL
+# SKANN-SSL: Selective Kernel Audio Neural Networks with Self-Supervised Learning
 
-**Selective Kernel Audio Neural Networks with Self-Supervised Learning**
-
-A hybrid self-supervised acoustic representation learning system for underwater acoustics, designed for vessel detection and classification from passive sonar data.
+An underwater acoustic vessel detection and classification system using self-supervised learning. SKANN-SSL learns to identify vessel signatures directly from raw waveforms without requiring labeled training data.
 
 ---
 
-## Project Overview
+## 🎯 Project Status
 
-SKANN-SSL learns acoustic representations from unlabelled underwater recordings using a multi-stage pipeline:
-
-1. **Raw waveform ingestion** → learned filterbank (no handcrafted spectrograms)
-2. **Multi-scale feature extraction** → Selective Kernel convolutions adapt receptive fields
-3. **Self-supervised learning** → Barlow Twins learns invariant representations
-4. **Unsupervised clustering** → HDBSCAN discovers vessel categories
-
-### Key Innovation
-
-Traditional approaches use fixed STFT/mel spectrograms. SKANN-SSL learns the filterbank end-to-end, allowing the network to discover optimal time-frequency representations for underwater acoustics.
-
-> **See [ROADMAP.md](ROADMAP.md) for detailed stage descriptions, technical decisions, and current progress.**
-
----
-
-## Pipeline Stages
-
-| Stage | Name | Description | Status |
-|-------|------|-------------|--------|
-| -1 | Data Generation | Synthetic waveform generator | ✅ Complete |
-| 0 | Preprocessing | DataLoader, normalization, splits | ✅ Complete |
-| 1 | Learned Filterbank | SKConv1D multi-branch frontend | 🔄 Next |
-| 2 | 2D Encoder | SKConv2D hierarchical encoder | ⏳ Planned |
-| 3 | SSL Training | Barlow Twins self-supervised | ⏳ Planned |
-| 4 | Augmentation | Physics-consistent augmentations | ⏳ Planned |
-| 5 | Training Loop | Full training pipeline | ⏳ Planned |
-| 6 | Evaluation | Clustering, visualization | ⏳ Planned |
-| 7 | Deployment | ONNX export | ⏳ Planned |
+| Stage | Name | Status | Description |
+|-------|------|--------|-------------|
+| -1 | Synthetic Data | ✅ Complete | Physics-based waveform generator |
+| 0 | Preprocessing | ✅ Complete | DataLoader, normalization, splits |
+| 1 | SKConv1D Filterbank | 🔄 Next | Multi-branch learned filterbank |
+| 2 | Encoder | ✅ Complete | HybridSKEncoder (34.4M params) |
+| 3 | SSL Training | ✅ Complete | Barlow Twins on Dual T4 GPUs |
+| 4 | Augmentation | ⏳ Planned | Physics-consistent augmentations |
+| 5 | Training Loop | ✅ Complete | Integrated with Stage 3 |
+| 6 | Evaluation | ✅ Complete | Confusion matrix, clustering |
+| 7 | Deployment | ✅ Complete | Local inference engine |
 
 ---
 
-## Project Structure
+## 🏆 Key Results
+
+| Metric | Value |
+|--------|-------|
+| **Model Parameters** | 34.4 Million |
+| **Embedding Dimension** | 128 |
+| **Silhouette Score** | 0.3997 |
+| **Training Hardware** | NVIDIA Dual T4 GPUs (DDP) |
+| **Dataset Size** | 1,920 synthetic clips |
+
+---
+
+## 🏗️ Architecture
 
 ```
-SKANN_SSL/
-├── README.md                     # This file
-├── ROADMAP.md                    # Detailed stage descriptions & status
+Raw Waveform [B, 1, 16000]
+        │
+        ▼
+┌───────────────────────────────────┐
+│  BACKBONE 1D (Temporal)           │
+│  Conv1d(1→128, k=31, s=4)         │
+│  Conv1d(128→128, k=15, s=2)       │
+└───────────────────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────┐
+│  BACKBONE 2D (Spectral)           │
+│  Conv2d stack → AdaptivePool      │
+│  Output: 512-dim                  │
+└───────────────────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────┐
+│  PROJECTOR (Deep MLP)             │
+│  512 → 4096 → 8192 → 128          │
+└───────────────────────────────────┘
+        │
+        ▼
+   128-dim Acoustic Fingerprint
+```
+
+---
+
+## 📁 Project Structure
+
+```
+SKANN-SSL/
+├── README.md
+├── ROADMAP.md
+├── .gitignore
 │
 ├── data/
 │   └── prototype_dataset/
-│       ├── master_dataset_manifest.csv  # Authoritative dataset map
-│       ├── waveforms/                   # Raw waveforms (Pa, float32)
-│       └── tensors/                     # Preprocessed [1,1,16000]
+│       ├── master_dataset_manifest.csv   # 26-column metadata
+│       ├── pairing_manifest.csv          # Hard positive pairs
+│       ├── waveforms/                    # Raw Pa waveforms
+│       └── tensors/                      # Preprocessed [1,1,16000]
 │
 ├── stages/
-│   ├── stage_minus1/             # Synthetic data generator
-│   ├── stage0_preprocessing/     # DataLoader, splits, transforms
-│   ├── stage1_skconv1d/          # Learned 1D filterbank
-│   ├── stage2_encoder/           # 2D hierarchical encoder
-│   ├── stage3_ssl/               # Barlow Twins SSL
-│   ├── stage4_augmentation/      # Augmentation engine
-│   └── stage5_training/          # Training loop
+│   ├── stage_minus1/          # Synthetic data generator
+│   ├── stage0_preprocessing/  # DataLoader, splits
+│   ├── stage1_skconv1d/       # [NEXT] Multi-branch filterbank
+│   ├── stage2_encoder/        # HybridSKEncoder architecture
+│   ├── stage3_ssl/            # Barlow Twins training
+│   ├── stage4_augmentation/   # [PLANNED] Augmentation engine
+│   ├── stage5_training/       # Training utilities
+│   ├── stage6_evaluation/     # Confusion matrix, metrics
+│   └── stage7_deployment/     # Local inference engine
 │
-├── shared/                       # Cross-stage utilities
-│   ├── config.py                 # Global constants
-│   └── utils.py                  # Common functions
-│
-├── notebooks/                    # Colab/Jupyter notebooks
-│
-├── checkpoints/                  # Saved model weights
-│   ├── stage1/
-│   ├── stage3/
-│   └── stage5/
-│
-└── outputs/                      # Results and artifacts
-    ├── embeddings/
-    ├── figures/
-    └── evaluation/
+├── docs/                      # Technical documentation (A-F)
+├── outputs/                   # Sample results and plots
+└── shared/                    # Common utilities
 ```
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
-### 1. Mount Google Drive (Colab)
-```python
-from google.colab import drive
-drive.mount('/content/drive')
-
-import sys
-sys.path.append('/content/drive/MyDrive/SKANN_SSL')
+### 1. Clone the Repository
+```bash
+git clone https://github.com/suniltyagi/SKANN-SSL.git
+cd SKANN-SSL
 ```
 
 ### 2. Load Data
 ```python
 from stages.stage0_preprocessing.dataloader import get_dataloaders
 
-MANIFEST = '/content/drive/MyDrive/SKANN_SSL/data/prototype_dataset/master_dataset_manifest.csv'
-
 train_loader, val_loader, test_loader = get_dataloaders(
-    manifest_path=MANIFEST,
+    manifest_path='data/prototype_dataset/master_dataset_manifest.csv',
     batch_size=32
 )
 ```
 
-### 3. Verify
+### 3. Run Inference (requires production bundle)
+```bash
+cd stages/stage7_deployment
+python acoustic_sonar_classifier3.py
+```
+
+---
+
+## 📊 Dataset
+
+The synthetic dataset covers a full-factorial experimental design:
+
+| Factor | Values |
+|--------|--------|
+| Sea States | SS0, SS1, SS3, SS6 |
+| Vessel Classes | small_craft, fishing_vessel, cargo_ship, tanker |
+| Blade Counts | 3, 4, 5 |
+| Generator Freq | 50 Hz, 60 Hz |
+| Cavitation Levels | 0, 1, 2, 3 |
+| Repetitions | 5 per combination |
+| **Total Clips** | **1,920** |
+
+**Audio Specifications:**
+- Sample Rate: 16,000 Hz
+- Duration: 1.0 second
+- Frequency Band: 10 Hz – 8,000 Hz
+- SNR: 6 dB (ship above sea noise)
+
+---
+
+## 🔬 Training Pipeline
+
+### Hard Positive Mining
+The `pairing_manifest.py` creates anchor-partner pairs that are:
+- Same vessel class (positive)
+- Maximally distant in feature space (hard)
+
+This forces the network to learn class-invariant representations.
+
+### Barlow Twins SSL
 ```python
-x, y = next(iter(train_loader))
-print(f"Input shape: {x.shape}")   # [32, 1, 16000]
-print(f"Labels: {y}")              # tensor([0, 2, 1, 3, ...])
+# Cross-correlation matrix
+C = z1_normalized.T @ z2_normalized / batch_size
+
+# Loss: diagonal → 1, off-diagonal → 0
+loss = on_diagonal_loss + λ * off_diagonal_loss
 ```
+
+### Training Configuration
+- Epochs: 50
+- Batch Size: 4 per GPU (8 effective)
+- Optimizer: AdamW, lr=1e-4
+- Lambda (λ): 0.0051
+- Mixed Precision: ✅ Enabled
 
 ---
 
-## Dataset
+## 📈 Evaluation
 
-### Prototype Dataset (Stage -1)
-
-| Property | Value |
-|----------|-------|
-| Total clips | 1,920 |
-| Duration | 1.0 second |
-| Sample rate | 16,000 Hz |
-| Frequency band | 10 Hz – 8,000 Hz |
-| SNR | 6.0 dB (ship above sea) |
-| Format | float32, Pascals |
-
-### Full-Factorial Design
-```
-4 sea states × 4 vessel classes × 3 blade counts × 
-2 generator freqs × 4 cavitation levels × 5 repeats = 1,920 clips
+### Confusion Matrix Generator
+```bash
+cd stages/stage6_evaluation
+python confusion_matrix_generator.py
 ```
 
-### Vessel Classes
-| Class | Shaft Rate | BPF Range | Cavitation Peak |
-|-------|------------|-----------|-----------------|
-| small_craft | 15-30 Hz | 45-90 Hz | 5000 Hz |
-| fishing_vessel | 4-8 Hz | 12-32 Hz | 1500 Hz |
-| cargo_ship | 1.5-2.5 Hz | 6-12.5 Hz | 600 Hz |
-| tanker | 1.0-1.5 Hz | 4-9 Hz | 400 Hz |
+Outputs:
+- `confusion_matrix.png` — Visual heatmap
+- `confusion_report.txt` — Per-class metrics
+- `misclassified_clips.csv` — Error analysis
+
+### Centroid-Based Classification
+The inference engine compares new acoustic fingerprints against pre-computed class centroids using Euclidean distance.
 
 ---
 
-## Architecture
+## 📦 Production Assets (Not in Repo)
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        SKANN-SSL Pipeline                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  Raw Waveform [B, 1, 16000]                                     │
-│         │                                                        │
-│         ▼                                                        │
-│  ┌─────────────────────────────────────────┐                    │
-│  │         Stage 1: SKConv1D               │                    │
-│  │  Multi-branch: kernels (3,5,7,11,15)    │                    │
-│  │  Attention-weighted fusion              │                    │
-│  └─────────────────────────────────────────┘                    │
-│         │                                                        │
-│         ▼ [B, 64, 16000]                                        │
-│  ┌─────────────────────────────────────────┐                    │
-│  │         Stage 2: SKConv2D               │                    │
-│  │  Reshape → 2D conv blocks → Pool        │                    │
-│  └─────────────────────────────────────────┘                    │
-│         │                                                        │
-│         ▼ [B, D] embedding                                      │
-│  ┌─────────────────────────────────────────┐                    │
-│  │         Stage 3: Barlow Twins           │                    │
-│  │  Siamese encoder + Projector            │                    │
-│  │  Loss: invariance + decorrelation       │                    │
-│  └─────────────────────────────────────────┘                    │
-│         │                                                        │
-│         ▼                                                        │
-│  ┌─────────────────────────────────────────┐                    │
-│  │         Clustering (HDBSCAN)            │                    │
-│  │  Unsupervised vessel categorization     │                    │
-│  └─────────────────────────────────────────┘                    │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+These files are too large for GitHub. Generate them using the training pipeline:
+
+| File | Size | Description |
+|------|------|-------------|
+| `SKANN_SSL_Production_Bundle.joblib` | ~150 MB | Model weights + metadata |
+| `vessel_territories.joblib` | ~1 KB | Class centroids (128-dim × 4) |
+| `BT_ckpt_epoch_*.pth` | ~140 MB | Training checkpoints |
 
 ---
 
-## Key Technical Decisions
+## 📚 Documentation
 
-| Decision | Rationale |
-|----------|-----------|
-| 10 Hz minimum frequency | Avoids turbulence model extrapolation |
-| Learned filterbank | End-to-end optimization vs fixed STFT |
-| Selective Kernels | Adaptive receptive fields for multi-scale features |
-| Barlow Twins | No negative pairs needed, stable training |
-| 16 kHz sample rate | Captures cavitation (up to 8 kHz Nyquist) |
+Comprehensive technical documentation in `/docs/`:
 
----
-
-## Future Datasets
-
-After prototype validation, integrate real-world data:
-
-- **NOAA NCEI** – Passive acoustic archives
-- **MBARI** – Hydrophone recordings with vessel pass-bys
-- **JAMSTEC** – Long-term underwater observatory
-- **DCLDE** – Marine mammal + vessel acoustic events
+| Document | Content |
+|----------|---------|
+| A.docx | Underwater Acoustics Fundamentals |
+| B.docx | Ambient Noise Models (Knudsen, Wenz, Kießling) |
+| C.docx | DSP and Sampling Conventions |
+| D.docx | Waveform Synthesis Pipeline |
+| E.docx | Encoder Architecture & SSL |
+| F.docx | Diagnostics & Deployment |
+| Technical_Report.docx | System Summary |
 
 ---
 
-## Requirements
+## 🔮 Roadmap
 
-```
-torch >= 2.0
-numpy
-pandas
-scikit-learn
-matplotlib
-```
+### Immediate (Stage 1)
+- [ ] Implement multi-branch SKConv1D filterbank
+- [ ] Kernels: [3, 5, 7, 11, 15] with attention fusion
+- [ ] Retrain and compare confusion metrics
+
+### Short-term
+- [ ] Address class confusion (especially large vessels)
+- [ ] Implement physics-consistent augmentations
+- [ ] Holdout validation on unseen data
+
+### Long-term
+- [ ] Test on real hydrophone data (ShipEar, NOAA)
+- [ ] ONNX export for embedded deployment
+- [ ] Real-time streaming inference
 
 ---
 
-## References
+## 📖 References
 
 - Li et al., "Selective Kernel Networks" (CVPR 2019)
 - Zbontar & LeCun, "Barlow Twins" (ICML 2021)
@@ -225,22 +245,10 @@ matplotlib
 
 ---
 
-## Version History
+## 📄 License
 
-| Version | Date | Description |
-|---------|------|-------------|
-| 0.1.0 | Dec 2025 | Stage -1 complete (synthetic generator) |
-| 0.2.0 | Dec 2025 | Stage 0 complete (DataLoader, manifest) |
-| 0.3.0 | Dec 2025 | Project restructure (stages/ layout) |
+[Add your license here]
 
 ---
 
-## License
-
-Proprietary – Research Use Only
-
----
-
-## Contact
-
-Project Lead: Oravont
+*Last Updated: December 2025*

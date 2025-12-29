@@ -1,6 +1,118 @@
+# =============================================================================
+# SKANN-SSL .gitignore
+# =============================================================================
 
-__pycache__/
-.ipynb_checkpoints/
-*.pt
+# -----------------------------------------------------------------------------
+# Large Model Files (DO NOT COMMIT - too large for GitHub)
+# -----------------------------------------------------------------------------
 *.pth
-# *.npy  <-- REMOVED (Now Git will see your data)
+*.joblib
+*.pkl
+*.h5
+*.onnx
+
+# Specific production files
+SKANN_SSL_Production_Bundle.joblib
+vessel_territories.joblib
+BT_ckpt_epoch_*.pth
+SKANN_SSL_GPU_Final.pth
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# -----------------------------------------------------------------------------
+# Jupyter Notebooks
+# -----------------------------------------------------------------------------
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# -----------------------------------------------------------------------------
+# IDE / Editors
+# -----------------------------------------------------------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# -----------------------------------------------------------------------------
+# OS Generated
+# -----------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# -----------------------------------------------------------------------------
+# Logs and Databases
+# -----------------------------------------------------------------------------
+*.log
+*.sql
+*.sqlite
+loss_history.txt
+
+# -----------------------------------------------------------------------------
+# Output Files (Keep samples, ignore bulk)
+# -----------------------------------------------------------------------------
+# Keep sample radar plots in outputs/sample_radar_plots/
+# Ignore generated analysis files
+confusion_matrix.png
+confusion_report.txt
+misclassified_clips.csv
+
+# -----------------------------------------------------------------------------
+# Data Files (Tensors are large - keep manifest, ignore raw data)
+# -----------------------------------------------------------------------------
+# The tensors/ folder is tracked but individual .npy files are large
+# Consider using Git LFS for these if needed
+# data/prototype_dataset/waveforms/*.npy
+# data/prototype_dataset/tensors/*.npy
+
+# -----------------------------------------------------------------------------
+# Temporary Files
+# -----------------------------------------------------------------------------
+*.tmp
+*.temp
+*.bak
+*.cache
+
+# -----------------------------------------------------------------------------
+# Kaggle / Colab Specific
+# -----------------------------------------------------------------------------
+/kaggle/
+.kaggle/
+sample_data/
