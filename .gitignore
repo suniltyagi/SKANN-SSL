@@ -17,6 +17,7 @@ vessel_territories.joblib
 BT_ckpt_epoch_*.pth
 SKANN_SSL_GPU_Final.pth
 
+
 # -----------------------------------------------------------------------------
 # Python
 # -----------------------------------------------------------------------------
@@ -101,6 +102,7 @@ misclassified_clips.csv
 # Consider using Git LFS for these if needed
 # data/prototype_dataset/waveforms/*.npy
 # data/prototype_dataset/tensors/*.npy
+data/prototype_dataset/master_dataset_manifest_COLAB_BACKUP.csv
 
 # -----------------------------------------------------------------------------
 # Temporary Files
