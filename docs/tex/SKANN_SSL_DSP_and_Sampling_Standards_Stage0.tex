@@ -1,0 +1,333 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath,amssymb,geometry,setspace,url}
+\geometry{margin=1in}
+\setstretch{1.2}
+\begin{document}
+\title{SKANN-SSL --- DSP \& Sampling Standards (Stage 0 Preprocessing)}
+\author{Oravont Systems LLP}
+\date{}
+\maketitle
+
+SKANN Document C
+DSP and Sampling Logic for SKANN Stage 0
+(Final Structured Draft)
+
+Oravont Systems LLP
+
+\section*{Introduction}
+Document C defines the digital signal processing (DSP) conventions used in the SKANN project. These conventions ensure that all synthetic and recorded underwater signals are:
+
+comparable in sampling rate,
+
+comparable in amplitude scale,
+
+represented in a consistent spectral framework,
+
+compatible with machine-learning front-ends,
+
+correctly aligned with Documents A (acoustics) and B (ambient noise).
+
+SKANN Stage 0 (Preprocessing \& Standardisation) uses the definitions in this document to:
+
+resample incoming audio,
+
+normalise amplitude,
+
+compute FFT size and bin spacing,
+
+segment data,
+
+prepare tensors for the learned filterbank (Stage 1).
+
+\section*{Sampling Frequency}
+The sampling frequency  determines the highest representable frequency and the time resolution. For SKANN, underwater signals are band-limited to:
+
+
+Thus a sampling rate of:
+
+
+is chosen because:
+
+it satisfies Nyquist for 0–32 kHz,
+
+it is a power-of-two multiple (32k × 1.024),
+
+it enables efficient FFT computation,
+
+it is compatible with embedded / hydrophone ADCs.
+
+\section*{Nyquist Frequency}
+The highest representable frequency is:
+
+
+\section*{For  Hz:}
+
+Since ambient-noise PSD is defined up to 32 kHz, SKANN uses frequency mirroring for synthetic wideband signals in Stage  (Document D), but Stage 0 only processes real hydrophone data band-limited to 0–16 kHz.
+
+FFT Size and Frequency Resolution
+
+Given FFT size  and sampling rate , the frequency resolution is:
+
+
+Typical FFT sizes in SKANN:
+
+
+\section*{Examples:}
+
+
+Higher  gives finer spectral detail but increases CPU/GPU load.
+
+The FFT bin frequencies are:
+
+
+Windowing and Frame Segmentation
+
+Before computing the FFT, each frame of length  samples is multiplied by a window function  to reduce spectral leakage.
+
+Common choices:
+
+Hann window,
+
+Hamming window,
+
+Blackman window.
+
+The windowed frame is:
+
+
+Overlap and Hop Size
+
+For continuous signals, frames overlap to ensure good time resolution:
+
+
+Typical SKANN values:
+
+
+This maintains smooth spectrograms and avoids information loss.
+
+DFT Conventions and One-Sided Spectrum
+
+Given the windowed frame , the DFT is:
+
+
+For real-valued input:
+
+
+Therefore, only indices  contain unique information.
+
+Power Spectral Density (PSD) Estimation
+
+PSD expresses mean-square pressure per unit bandwidth (Pa/Hz).
+
+\section*{Periodogram}
+The periodogram estimate is:
+
+
+Where  is the window power:
+
+
+The factor of 2 accounts for folding negative frequencies into positive frequencies (one-sided PSD).
+
+Welch PSD
+
+To obtain a smoother PSD, SKANN optionally uses Welch’s method:
+
+Split data into overlapping frames.
+
+Apply window to each frame.
+
+Compute periodogram for each frame.
+
+Average periodograms:
+
+
+This reduces variance of the PSD estimate but slightly increases bandwidth.
+
+\section*{Bandpower Computation}
+Given a PSD , the mean-square pressure in band  is:
+
+
+Discrete approximation:
+
+
+Band level in dB:
+
+
+Hermitian Symmetry and Signal Reconstruction
+
+For reconstruction or synthesis (used in Document D), SKANN uses Hermitian symmetry to enforce real-valued time-domain signals:
+
+
+\section*{With:}
+
+This guarantees that the inverse FFT:
+
+
+produces real-valued samples .
+
+Amplitude Processing and Normalisation
+
+Before sending any waveform into SKANN Stage 0, the amplitude must be standardised so that all datasets (synthetic and real) are comparable.
+
+DC Offset Removal
+
+The first step is to ensure that:
+
+
+DC offset is removed by:
+
+
+This prevents artificial low-frequency artefacts.
+
+\section*{Peak Normalisation}
+Peak-normalised signal:
+
+
+Peak normalisation makes all recordings fit within  and is used for preliminary sanity checks.
+
+RMS Normalisation
+
+More physically meaningful is RMS-based scaling:
+
+
+This sets the continuous-time RMS to:
+
+
+Synthetic training data optionally uses target RMS values corresponding to:
+
+
+\section*{Resampling Logic}
+All signals must be resampled to the SKANN standard sampling rate:
+
+
+\section*{Anti-Alias Filtering}
+Before down-sampling by a factor :
+
+
+an anti-alias filter with passband:
+
+
+must be applied.
+
+\section*{Upsampling}
+Upsampling inserts zeros between samples and applies a reconstruction filter:
+
+
+followed by low-pass filtering.
+
+\section*{Polyphase Resamplers}
+In practice, SKANN uses library polyphase filters (SRC / resampy) for high-quality resampling with minimal distortion.
+
+Silence Trimming and Energy Gating
+
+SKANN avoids frames with very low energy, since they harm SSL pretraining and classification.
+
+A short-time energy gate is:
+
+
+Frames satisfying:
+
+
+(where  is a percentile threshold) are removed.
+
+Segmentation and Padding
+
+Segments are extracted with fixed duration:
+
+
+Typical values:
+
+
+Padding rules:
+
+pad with zeros if the last segment is short,
+
+pad symmetrically for CNNs that require even-length inputs.
+
+Tensor Preparation for SKANN
+
+After segmentation, each frame of length  becomes a tensor:
+
+
+A batch is:
+
+
+where  is batch size.
+
+For STFT-based learners (optional):
+
+
+where:
+
+
+
+\section*{Stage 0 Preprocessing Pipeline (Summary)}
+Stage 0 prepares raw or synthetic signals into a uniform digital format for ingestion by the learned filterbank (Stage 1). The steps are:
+
+DC removal: subtract the mean to stabilise the low-frequency spectrum.
+
+Resampling: convert all signals to  Hz with anti-alias filtering.
+
+Amplitude normalisation: peak-normalise for safety, RMS-normalise for consistency.
+
+Segmentation: extract segments of length  with 50\% overlap.
+
+Windowing: apply Hann/Hamming window before FFT.
+
+Silence gating: remove frames whose short-time energy  is below threshold.
+
+Tensor formation: final waveform tensor:
+
+
+(Optional) STFT: for spectrogram-based models:
+
+
+\section*{Stage 0 Flowchart (Placeholder)}
+SKANN Stage 0 preprocessing pipeline (conceptual).
+
+Appendix A — Unified List of Symbols
+
+The following symbols match Documents A and B to maintain consistency.
+
+Sampling and Frames
+
+: sampling frequency [Hz].
+
+: sampling interval  [s].
+
+: samples per frame.
+
+: frame duration [s].
+
+hop: frame advance in samples.
+
+\section*{Frequency-Domain Quantities}
+: FFT bin frequency.
+
+: FFT bin spacing [].
+
+: DFT of windowed frame.
+
+: pressure PSD [Pa/Hz].
+
+: Welch PSD estimate.
+
+Amplitude and Energy
+
+: discrete-time pressure.
+
+: RMS amplitude.
+
+: reference amplitude (Pa).
+
+: frame energy.
+
+\section*{Synthesis/Reconstruction}
+: random phase.
+
+IFFT: inverse discrete Fourier transform.
+
+: amplitude spectrum.
+
+\section*{Pandoc Compatibility Notes}
+\end{document}

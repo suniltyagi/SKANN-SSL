@@ -89,7 +89,7 @@ SKANN-SSL/
 │   ├── stage6_evaluation/     # Confusion matrix, metrics
 │   └── stage7_deployment/     # Local inference engine
 │
-├── docs/                      # Technical documentation (A-F)
+├── docs/                      # Technical documentation 
 ├── outputs/                   # Sample results and plots
 └── shared/                    # Common utilities
 ```
@@ -203,17 +203,21 @@ These files are too large for GitHub. Generate them using the training pipeline:
 
 ## 📚 Documentation
 
-Comprehensive technical documentation in `/docs/`:
+Authoritative technical documentation for the SKANN-SSL project is maintained in `/docs/`.
 
-| Document | Content |
-|----------|---------|
-| A.docx | Underwater Acoustics Fundamentals |
-| B.docx | Ambient Noise Models (Knudsen, Wenz, Kießling) |
-| C.docx | DSP and Sampling Conventions |
-| D.docx | Waveform Synthesis Pipeline |
-| E.docx | Encoder Architecture & SSL |
-| F.docx | Diagnostics & Deployment |
-| Technical_Report.docx | System Summary |
+| Document | Description |
+|----------|-------------|
+| Project Roadmap | System overview and execution roadmap |
+| Document Index | Document hierarchy and authority |
+| Underwater Acoustics Foundations | Acoustic theory and definitions |
+| Ambient Noise Models | Knudsen, Wenz, and Kießling noise models |
+| Parametric Sea-Noise Model | Analytic sea-noise PSD construction |
+| DSP & Sampling Standards | Signal preprocessing conventions |
+| Ambient Noise Synthesis | Time-domain waveform generation |
+| System Architecture & SSL Pipeline | Encoder and self-supervised learning design |
+| Diagnostics & Deployment | Evaluation and deployment strategy |
+
+See `docs/00_DOCUMENT_INDEX.md` for document scope and authority.
 
 ---
 

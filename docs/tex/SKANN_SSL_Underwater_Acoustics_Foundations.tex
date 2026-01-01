@@ -1,0 +1,430 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath,amssymb,geometry,setspace,url}
+\geometry{margin=1in}
+\setstretch{1.2}
+\begin{document}
+\title{SKANN-SSL --- Underwater Acoustics Foundations}
+\author{Oravont Systems LLP}
+\date{}
+\maketitle
+
+SKANN Document A
+Underwater Acoustics Basics
+(Final Corrected Version with Diagram Placeholders)
+
+Oravont Systems LLP
+
+\section*{Introduction}
+Underwater acoustics establishes the physical foundation required for interpreting ocean‐borne sound. For SKANN, this foundation supports synthetic waveform creation (Stage ), preprocessing (Stage 0), and all downstream machine‐learning tasks involving tonal lines, broadband noise, and transients.
+
+This document presents a complete and corrected treatment of:
+
+acoustic pressure, RMS energy, and intensity,
+
+sound pressure level (SPL) and the “+6 dB detectability” rule,
+
+the underwater reference pressure of ,
+
+transmission loss (TL), especially ,
+
+difference between noise in a 1 Hz band and pressure PSD,
+
+the  versus  modelling debate and final resolution,
+
+definitions, units, and symbols (to be reused in Documents B–D),
+
+placeholders for figures with authoritative reference links.
+
+The content is self‐contained and written in a clean, structured, engineering‐grade style. All mathematics uses Pandoc‐compatible LaTeX (no TikZ, no math inside list labels).
+
+\section*{Acoustic Pressure}
+Instantaneous acoustic pressure
+
+Underwater sound consists of small fluctuations in pressure around the static hydrostatic pressure. The instantaneous acoustic pressure is
+
+
+measured in pascals (Pa). This is the quantity directly sensed by a hydrophone.
+
+After digitisation at sampling frequency , the discrete‐time sequence is
+
+
+This discrete waveform is the starting point for SKANN’s analysis and for synthetic ambient noise generation.
+
+Mean-square pressure and RMS pressure
+
+Because  oscillates around zero, its magnitude is represented using the mean-square pressure
+
+
+and its square root, the root mean-square (RMS) pressure,
+
+
+In discrete form,
+
+
+RMS pressure (and its square) is the basis of SPL, band levels, PSD integration, and detectability rules.
+
+\section*{Underwater Noise Components}
+Underwater noise relevant to vessel classification has three principal components: tonal, broadband, and transient. Their physical origin and spectral structure influence how SKANN identifies vessels.
+
+Tonal components
+
+Tonal lines arise from periodic mechanical motion such as:
+
+shaft rotation,
+
+gearbox mesh,
+
+generator harmonics,
+
+propeller blade rate.
+
+The blade‐rate frequency is
+
+
+where  is blades per propeller and  is in rpm.
+
+These lines act as stable identifiers.
+
+Broadband components
+
+Broadband noise arises from hydrodynamic turbulence, flow noise, cavitation, and structural vibration. In a PSD, it appears as a smooth spectrum without sharp peaks. It strongly depends on vessel speed.
+
+Transient components
+
+Transient noise includes:
+
+cavitation onset,
+
+manoeuvring events,
+
+mechanical impacts,
+
+impulsive hydrodynamic events.
+
+These appear as short‐duration bursts in time and spectrograms.
+
+Ambient noise
+
+The ocean contains persistent background noise from:
+
+wind and waves,
+
+distant shipping,
+
+marine life,
+
+rainfall,
+
+geophysical activity.
+
+Ambient noise spectra are handled in detail in Document B (Knudsen, Wenz, Kießling).
+
+Sound Pressure Level, Reference Pressure, and Detectability
+
+Reference pressure 1 Pa
+
+Underwater acoustics uses
+
+
+as the reference pressure. This convention:
+
+reflects the high acoustic impedance of seawater,
+
+is used in all hydrophone calibrations,
+
+matches Knudsen and Wenz ocean-noise spectra (dB re 1 Pa or dB re 1 Pa/Hz).
+
+Sound Pressure Level (SPL)
+
+SPL is defined as:
+
+
+Because  is proportional to acoustic intensity, using  on pressure is equivalent to  on power.
+
+The +6 dB detectability rule (Corrected)
+
+Detectability in underwater acoustics is expressed as a **difference of levels**, not by raw SNR of power ratios.
+
+\section*{Let:}
+= signal level (dB),
+
+= noise level (dB).
+
+Detectability threshold used in SKANN:
+
+
+This corresponds to the signal’s RMS pressure amplitude being about a factor of 2 (power factor of 4) above ambient in the same band. A +6 dB gap gives clear visibility of tonals and many broadband features.
+
+Spectral Analysis: PSD, Bandpower, and 1 Hz Noise Bands
+
+\section*{Discrete Fourier Transform}
+Given  samples at sampling frequency , the DFT is:
+
+
+Frequency bin:
+
+
+Power Spectral Density (PSD)
+
+The (one-sided) pressure PSD  represents mean-square pressure per unit bandwidth (Pa/Hz). A periodogram estimate (ignoring window effects) is:
+
+
+Band-limited mean-square pressure over :
+
+
+Band level:
+
+
+Noise level in 1 Hz vs PSD (Corrected)
+
+Many ambient-noise curves (Knudsen, Wenz) publish noise level:
+
+
+Convert back to PSD as:
+
+
+Total noise in a 1 Hz band centred at :
+
+
+\section*{Interpretation:}
+is a density in Pa/Hz,
+
+integrating over 1 Hz yields total noise power in that band.
+
+They are related but not identical. SKANN uses  as the primary model input.
+
+Propagation and Transmission Loss
+
+Spherical spreading
+
+For a point source radiating acoustic power , the intensity at distance  is:
+
+
+For a plane wave in a lossless medium:
+
+
+\section*{Thus:}
+
+Spherical spreading geometry.
+
+\section*{Transmission Loss (Corrected)}
+Transmission loss relative to  is:
+
+
+For  m:
+
+
+This is the correct spreading regime for early-stage SKANN synthetic waveforms.
+
+Source Level and Received Level
+
+Source level:
+
+
+Received level at distance :
+
+
+Example: At  m:
+
+
+RMS Pressure, , and Acoustic Intensity
+
+Mean-square pressure and RMS (Recap)
+
+
+Because  oscillates around zero, only  carries energy information.
+
+Acoustic intensity
+
+\section*{Intensity:}
+
+Thus intensity .
+
+Relationship between , , RMS pressure, and intensity.
+
+The  vs  Debate (Final SKANN Resolution)
+
+The tempting but incorrect approach
+
+A naive idea:
+
+> “Since levels depend on , maybe we can model  directly.”
+
+This is incorrect because:
+
+Squaring introduces components at  Hz and  for each tone.
+
+Broadband noise becomes non-Gaussian and spectrally distorted.
+
+has no physical meaning.
+
+PSD reconstruction using  is impossible.
+
+Correct method: Synthesis from  to
+
+The correct SKANN procedure is:
+
+\section*{Choose , , .}
+Obtain target PSD .
+
+Compute amplitude spectrum:
+
+
+Assign random phases:
+
+
+Form complex spectrum: .
+
+Impose Hermitian symmetry.
+
+\section*{IFFT  .}
+Scale to required RMS.
+
+PSD   random phase  IFFT   synthesis path.
+
+Final SKANN resolution
+
+Always synthesise **pressure** waveforms .
+
+Use  only for energy and level calculations.
+
+PSD is the fundamental spectral quantity.
+
+Spectral Analysis Figures (Inserted in Context)
+
+Figure: Tonal vs Broadband Noise Spectrum
+
+Illustration of tonal line above broadband noise floor.
+
+Figure: 1 Hz Noise Band vs PSD
+
+Difference between PSD (Pa/Hz) and noise in a 1 Hz band.
+
+FFT Grid
+
+FFT bin spacing and sampling:
+
+
+Frequency-domain structure: bins, resolution, and sampling grid.
+
+How SKANN Uses These Acoustic Foundations
+
+Tonals → selective convolutional filters.
+
+Broadband → CNN receptive fields.
+
+Transients → high-temporal-resolution kernels.
+
+PSD slope → governs SSL pretraining difficulty.
+
+RMS/SPL → set SNR and vessel–ambient levels.
+
+TL → range simulation for synthetic data.
+
+→ the core ambient noise input.
+
+→ the universal input to SKANN’s models.
+
+Document B introduces ambient noise models (Knudsen/Wenz/Kießling). Document C formalises DSP and sampling. Document D synthesises wideband ambient noise.
+
+Appendix A — List of Symbols (For Documents A–D)
+
+This appendix defines all symbols used consistently across Documents A, B, C, and D. All definitions are Pandoc-safe (no math inside item labels).
+
+Time-Domain and Sampling
+
+t: continuous time variable [s].
+
+n: sample index (integer).
+
+: sampling frequency [Hz].
+
+: sampling interval  [s].
+
+N: number of samples per window.
+
+T: window duration  [s].
+
+\section*{Acoustic Pressure}
+: instantaneous acoustic pressure [Pa].
+
+: discrete-time pressure sample [Pa].
+
+: mean-square acoustic pressure [Pa].
+
+: RMS acoustic pressure [Pa] or [Pa].
+
+: reference pressure (Pa).
+
+Levels and Noise Quantities
+
+SPL: sound pressure level,  [dB re 1 Pa].
+
+NL: noise level [dB re 1 Pa/Hz].
+
+: pressure PSD [Pa/Hz].
+
+Band level:  [dB re 1 Pa].
+
+SNR: signal-to-noise ratio (dB): .
+
+\section*{Propagation}
+r: range (distance from source) [m].
+
+: reference range (typically 1 m) [m].
+
+TL: transmission loss [dB].
+
+SL: source level [dB re 1 Pa @ 1 m].
+
+RL: received level [dB re 1 Pa].
+
+\section*{Medium Properties}
+: density of seawater ( 1025 kg/m).
+
+c: sound speed ( 1500 m/s).
+
+I: acoustic intensity [W/m].
+
+\section*{Frequency-Domain Quantities}
+f: frequency [Hz].
+
+: DFT bin frequency ().
+
+: frequency resolution ().
+
+: Fourier transform of .
+
+: DFT of .
+
+Vessel and Tonal Features
+
+B: number of propeller blades.
+
+: shaft speed [rpm].
+
+: blade-rate frequency [Hz].
+
+\section*{Synthetic Waveform Generation}
+: random phase for bin  (uniform in ).
+
+IFFT: inverse discrete Fourier transform.
+
+Notes on Pandoc Compatibility
+
+To ensure that pandoc Document_A.tex -o Document_A.docx works cleanly:
+
+No TikZ or PGF figures.
+
+No math expressions inside list labels.
+
+All math environments ($,
+
+
+, equation) are properly closed.
+
+URLs inserted using \url{}.
+
+No custom LaTeX packages beyond amsmath, amssymb, geometry, setspace, and url.
+
+\end{document}

@@ -1,0 +1,929 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath,amssymb,geometry,setspace,url}
+\geometry{margin=1in}
+\setstretch{1.2}
+\begin{document}
+\title{SKANN-SSL --- Ambient Noise Models (Knudsen, Wenz, Kießling)}
+\author{Oravont Systems LLP}
+\date{}
+\maketitle
+
+SKANN Document B
+Ambient Noise Models:
+Knudsen, Wenz, and Kießling
+(Final Structured Draft)
+
+Oravont Systems LLP
+
+\section*{Introduction}
+Ambient ocean noise forms the background against which all vessel acoustics must be detected. For SKANN, ambient noise modelling is crucial because synthetic waveform creation (Document D) depends directly on the spectral density  of the ocean at a given sea state, location, and frequency band.
+
+This document develops:
+
+the classic Knudsen spectrum,
+
+the Wenz curves and their frequency regions,
+
+the modern Kießling parametrisation,
+
+limitations of classic curves (flattening in 200–800 Hz),
+
+evidence from ADA460546 and subsequent NATO/USN data,
+
+complete digitisation and smoothing for SKANN ambient noise synthesis.
+
+This document assumes familiarity with Document A (pressure, PSD, SPL, TL, and spectral analysis fundamentals).
+
+\section*{Ocean Ambient Noise: Physical Overview}
+Ambient noise arises from a combination of:
+
+wind-driven surface processes,
+
+distant shipping noise,
+
+thermal agitation,
+
+biological sources,
+
+rainfall and surface impacts.
+
+Each of these dominates in different frequency bands. The empirical spectra in this document describe pressure spectral density in units of Pa/Hz or its logarithmic form:
+
+
+\section*{Classic Knudsen Model}
+The Knudsen curves (first published 1948, later standardised in NATO and US Navy documentation) model ambient noise as a function of frequency and sea state.
+
+They describe wind-driven surface noise above a few hundred hertz and shipping noise below  Hz, with frequency dependence generally of the form:
+
+
+where  is in kHz for historical reasons.
+
+The key characteristics:
+
+low-frequency slope around  dB per decade,
+
+mid/high-frequency slope around  dB per decade,
+
+strong dependence on sea state,
+
+calibrated originally 100 Hz–50 kHz.
+
+The Knudsen model predates modern wide-band measurements but remains useful for synthetic ambient noise generation when corrected and digitised properly.
+
+\section*{Knudsen Model: Full Formulation}
+The classic Knudsen spectrum separates wind-driven noise (high-frequency surface processes) from shipping noise (low-frequency anthropogenic contribution). The published form expresses frequency in kHz, a legacy convention.
+
+General analytic form
+
+For wind noise:
+
+
+and for shipping noise:
+
+
+where  is frequency in kHz.
+
+These give noise levels in:
+
+
+Parameter values
+
+Standard NATO/USN values:
+
+Wind noise:
+
+
+
+Shipping noise:
+
+
+
+These constants vary slightly across references but the above represent the canonical form widely used in sonar simulation.
+
+Sea-state scale (SS0–SS6)
+
+The sea state (SS) parameter enters only through the wind-noise intercept:
+
+
+\section*{Thus:}
+
+Higher sea states (SS > 6) are rarely included because wave breaking dominates and the Knudsen model loses validity.
+
+\section*{High-Frequency Asymptote}
+For wind noise:
+
+
+Convert  to Hz:
+
+
+\section*{Thus:}
+
+Group terms:
+
+
+where:
+
+
+This asymptote yields a power-law PSD:
+
+
+Example: Sea State 3 at 1 kHz
+
+\section*{Sea State 3:}
+
+Evaluate at :
+
+Frequency in kHz:
+
+
+\section*{Then:}
+
+Convert to :
+
+
+\section*{Numerically:}
+
+
+Continuous Analytic Form for SKANN
+
+For synthesis, SKANN uses a continuous representation:
+
+
+From the asymptote:
+
+
+A typical simplification (commonly used in literature) is:
+
+
+This approximate analytic form applies for:
+
+\section*{Hz,}
+moderate sea states (SS 2–5),
+
+deep-water conditions.
+
+\section*{Low-/Mid-Frequency Flattening (200–800 Hz)}
+Classic Knudsen curves are known to be inaccurate below 1 kHz. Modern measurements (NATO CMRE, US Navy ADA460546 reports) show:
+
+PSD slope flattens significantly around 200–800 Hz,
+
+low-frequency shipping noise dominates below  Hz,
+
+wind-driven noise does not follow a pure  law until  kHz.
+
+\section*{Therefore:}
+
+This transition is essential for realistic vessel–ambient mixtures.
+
+\section*{Shipping Noise Region (< 200 Hz)}
+Below 200 Hz, distant shipping dominates.
+
+Empirical form:
+
+
+Converted to Hz:
+
+
+\section*{Thus:}
+
+This is far flatter than the HF slope and must be included in SKANN’s low-frequency digitised spectrum.
+
+Thermal Noise (> 50 kHz)
+
+At very high frequencies:
+
+
+with .
+
+Converted to PSD:
+
+
+Although not crucial for SKANN (< 32 kHz), it defines the extreme high-frequency limit.
+
+\section*{Knudsen Model: Full Formulation}
+The classic Knudsen spectrum separates wind-driven noise (high-frequency surface processes) from shipping noise (low-frequency anthropogenic contribution). The published form expresses frequency in kHz, a legacy convention.
+
+General analytic form
+
+For wind noise:
+
+
+and for shipping noise:
+
+
+where  is frequency in kHz.
+
+These give noise levels in:
+
+
+Parameter values
+
+Standard NATO/USN values:
+
+Wind noise:
+
+
+
+Shipping noise:
+
+
+
+These constants vary slightly across references but the above represent the canonical form widely used in sonar simulation.
+
+Sea-state scale (SS0–SS6)
+
+The sea state (SS) parameter enters only through the wind-noise intercept:
+
+
+\section*{Thus:}
+
+Higher sea states (SS > 6) are rarely included because wave breaking dominates and the Knudsen model loses validity.
+
+\section*{High-Frequency Asymptote}
+For wind noise:
+
+
+Convert  to Hz:
+
+
+\section*{Thus:}
+
+Group terms:
+
+
+where:
+
+
+This asymptote yields a power-law PSD:
+
+
+Example: Sea State 3 at 1 kHz
+
+\section*{Sea State 3:}
+
+Evaluate at :
+
+Frequency in kHz:
+
+
+\section*{Then:}
+
+Convert to :
+
+
+\section*{Numerically:}
+
+
+Continuous Analytic Form for SKANN
+
+For synthesis, SKANN uses a continuous representation:
+
+
+From the asymptote:
+
+
+A typical simplification (commonly used in literature) is:
+
+
+This approximate analytic form applies for:
+
+\section*{Hz,}
+moderate sea states (SS 2–5),
+
+deep-water conditions.
+
+\section*{Low-/Mid-Frequency Flattening (200–800 Hz)}
+Classic Knudsen curves are known to be inaccurate below 1 kHz. Modern measurements (NATO CMRE, US Navy ADA460546 reports) show:
+
+PSD slope flattens significantly around 200–800 Hz,
+
+low-frequency shipping noise dominates below  Hz,
+
+wind-driven noise does not follow a pure  law until  kHz.
+
+\section*{Therefore:}
+
+This transition is essential for realistic vessel–ambient mixtures.
+
+\section*{Shipping Noise Region (< 200 Hz)}
+Below 200 Hz, distant shipping dominates.
+
+Empirical form:
+
+
+Converted to Hz:
+
+
+\section*{Thus:}
+
+This is far flatter than the HF slope and must be included in SKANN’s low-frequency digitised spectrum.
+
+Thermal Noise (> 50 kHz)
+
+At very high frequencies:
+
+
+with .
+
+Converted to PSD:
+
+
+Although not crucial for SKANN (< 32 kHz), it defines the extreme high-frequency limit.
+
+\section*{Wenz Curves: Frequency-Domain Interpretation}
+The Wenz (1962) curves provide a consolidated view of multiple ambient noise sources across several orders of magnitude in frequency. Unlike Knudsen, the Wenz diagram explicitly shows:
+
+shipping noise (LF),
+
+wind/wave noise (MF–HF),
+
+thermal noise (ultra-HF),
+
+biological noise (regional),
+
+rainfall and surface impacts,
+
+snapping shrimp (HF, tropical waters).
+
+Wenz curves are not strict equations — they are *empirical envelopes* compiled from many measurement campaigns. SKANN uses them to guide frequency-region interpretation and to calibrate digitised PSD shapes.
+
+Frequency Regions in Wenz Curves
+
+Below is a canonical breakdown of the Wenz spectrum:
+
+Below 10 Hz: microseisms, earthquakes, large-scale geophysical motion.
+
+10–200 Hz: distant shipping dominates (anthropogenic).
+
+200–1000 Hz: transition region; mixture of shipping, wind, and breaking waves.
+
+1–50 kHz: wind-driven surface noise (principal band for propeller and machinery signatures).
+
+> 50 kHz: thermal noise floor and biological peaks.
+
+These regions directly guide SKANN’s modelling of LF/MF/HF subbands.
+
+\section*{Shipping Noise Region (10–200 Hz)}
+Low-frequency ambient noise is strongly correlated with global shipping density. Wenz gives an envelope approximately following:
+
+
+(similar to Knudsen’s shipping slope).
+
+\section*{Characteristics:}
+slow-roll-off slope,
+
+high variability with distance, diurnal cycle, and traffic lanes,
+
+spectrally dense with overlapping tonals.
+
+SNAP (Source Levels of Anthropogenic Noise) data also support this form.
+
+Wind/Wave Region (1–50 kHz)
+
+This is the region where classic Knudsen HF curves largely overlap with the Wenz wind/wave envelope.
+
+Dominant processes:
+
+breaking waves,
+
+bubble entrainment,
+
+turbulent surface pressure fluctuations,
+
+foam noise and jetting.
+
+These processes collectively produce the well-known power-law:
+
+
+Thermal Noise (> 50 kHz)
+
+Thermal agitation of water molecules contributes:
+
+
+and thus:
+
+
+Although SKANN currently models up to 32 kHz, this region is relevant because HF noise shapes must seamlessly transition to thermal noise in future wideband versions.
+
+Rain Noise and Biological Noise
+
+While not traditionally part of the Knudsen or Wenz formulae, modern ambient-noise datasets include:
+
+\section*{Rain Noise}
+Rain produces broadband HF noise, particularly at:
+
+
+Rain-noise PSD rises with rainfall rate; heavy rainfall events elevate the entire 5–20 kHz band by several dB.
+
+\section*{Snapping Shrimp (Tropical Waters)}
+Snapping shrimp produce intense, broadband impulses with peaks in:
+
+
+In tropical littoral waters:
+
+shrimp noise exceeds wind/wave noise for  kHz,
+
+the HF floor is shrimp-limited, not wind-limited.
+
+While SKANN (deep-water vessel acoustics) usually ignores shrimp noise, the model allows optional inclusion for coastal experiments.
+
+\section*{Wenz Diagram (Placeholder)}
+The following placeholder marks where the Wenz diagram will be inserted in the final DOCX/PDF version.
+
+Wenz ambient-noise diagram: shipping, wind, and thermal regimes.
+
+Interpreting Wenz Curves for SKANN
+
+The Wenz curves guide SKANN in three ways:
+
+identifying which regions need LF flattening,
+
+validating the transition between shipping-dominated and wind-dominated bands,
+
+defining the “true” HF slope ( dB/decade) used for analytic PSD generation.
+
+Documents C and D rely on these interpretations for FFT bin allocation and PSD synthesis.
+
+Kießling’s Modern Ambient-Noise Parametrisation
+
+The Kießling model (1994–2004) provides a more accurate and more physically calibrated representation of ocean ambient noise than Knudsen. It is based on extensive deep-water datasets and addresses several shortcomings of the classic curves:
+
+correct flattening in 200–800 Hz,
+
+smoother transition between shipping and wind bands,
+
+updated HF slopes and intercepts,
+
+consistent use of SI frequency (Hz, not kHz),
+
+better agreement with modern NATO/USN datasets.
+
+Unlike Knudsen, which is essentially two simple lines patched at  Hz, Kießling provides piecewise-smooth functions across decades of frequency.
+
+General structure of the Kießling model
+
+Kießling expresses ambient noise level as:
+
+
+but with different  in three regions:
+
+
+The key innovation is allowing the MF region to have its own slope rather than forcing an abrupt join between two unrelated lines.
+
+HF wind-sea band ( Hz)
+
+The HF band closely resembles the Knudsen slope but uses frequency in Hz and a slightly different intercept:
+
+
+with the sea-state dependence included in .
+
+Typical form (deep water):
+
+
+This corresponds to:
+
+
+MF transition band (200–800 Hz)
+
+Kießling introduces a reduced slope:
+
+
+with:
+
+
+compared to:
+
+
+This shallower slope matches hundreds of modern measurements showing that the 200–800 Hz band does not behave as .
+
+This is one of the most important corrections for SKANN modelling.
+
+Kießling model transition band (shallow slope 200–800 Hz).
+
+LF shipping band (< 200 Hz)
+
+Kießling keeps the low-frequency shipping-noise formulation, but updates intercepts based on modern traffic density:
+
+
+Converted to PSD:
+
+
+As in Wenz and Knudsen, this region is anthropogenically dominated.
+
+Comparison: Knudsen vs Wenz vs Kießling
+
+The three models differ in purpose and accuracy:
+
+Knudsen — simple, two-slope model; widely used in sonar simulation; incorrect flattening below 1 kHz.
+
+Wenz — empirical visual envelope; best for identifying which process dominates.
+
+Kießling — best slope continuity, best LF/MF/HF consistency, SI-based, modern datasets.
+
+Their relationship:
+
+
+Why Kießling is Required for SKANN
+
+SKANN’s synthetic ambient-noise generator depends heavily on accurate spectral slopes in the 100–2000 Hz band. The Kießling model is essential for:
+
+correct LF/MF/HF continuity,
+
+accurate SNR modelling for +6 dB detectability,
+
+realistic masking behaviour for faint tonals,
+
+ensuring SSL backbone training matches real ocean noise.
+
+Knudsen alone would incorrectly:
+
+overestimate HF noise below 1 kHz,
+
+underestimate masking in the midband,
+
+distort bandwidth requirements for learned filterbanks.
+
+Validity Range of Models
+
+A consolidated view:
+
+Kießling HF:  Hz.
+
+Kießling MF:  Hz.
+
+Kießling LF:  Hz.
+
+Knudsen HF:  kHz.
+
+\section*{Shipping:  Hz.}
+Thermal:  kHz.
+
+SKANN’s operating band (0–32 kHz) fits entirely within these regimes.
+
+Classic Knudsen Curves are Incorrect Below 1 kHz
+
+Knudsen’s original measurements (1940s–1950s) were performed with:
+
+analogue filtering,
+
+hydrophones with limited LF calibration,
+
+surface-limited measurement geometries,
+
+low dynamic range for mid-frequency noise,
+
+absence of modern broadband FFT analysis.
+
+As a result, the canonical HF slope of  dB/decade was erroneously extended downwards into the midband (200–1000 Hz).
+
+**Modern measurements contradict this.**
+
+Evidence from ADA460546 (US Navy)
+
+The US Navy report ADA460546 (1996–2004 data collection) provides multi-year deep-water noise spectra showing:
+
+a clear flattening between 200–800 Hz,
+
+slope values between  and  dB/decade,
+
+strong deviation from Knudsen’s  dB/decade line,
+
+better agreement with Kießling’s transition band.
+
+This flattening is robust across:
+
+different basins (Pacific, Atlantic, Indian),
+
+different seasons,
+
+different wind speeds,
+
+daytime vs nighttime conditions.
+
+Modern Navy measurements (ADA460546) showing flattening of ambient noise in the 200–800 Hz band.
+
+Independent NATO CMRE Measurements
+
+NATO Centre for Maritime Research and Experimentation (CMRE) field campaigns (2000–2020) consistently report:
+
+behaviour only above  kHz,
+
+flat or weakly sloping spectra  Hz,
+
+shipping influence below 150–200 Hz,
+
+wind-sea dominance above 1 kHz.
+
+Their broadband datasets align better with the Kießling piecewise model than with Knudsen.
+
+Physical Reason for the Flattening
+
+The flattening arises because:
+
+breaking waves contribute broadband noise peaking above 1 kHz,
+
+bubble entrainment has a resonance distribution centred around 800 Hz,
+
+turbulence-generated underwater pressure fluctuations dominate below 300 Hz,
+
+wave–bubble interactions produce a midband plateau.
+
+Thus the ocean cannot show a single simple power-law across all bands.
+
+Implications for SKANN
+
+Using classic Knudsen curves below 1 kHz would:
+
+artificially raise HF noise in the 300–800 Hz band,
+
+distort SNR of tonals near 500–800 Hz,
+
+mislead SSL pretraining into expecting wrong PSD slopes,
+
+harm classifier performance for turbine/propeller signatures.
+
+\section*{Therefore:}
+
+instead of relying on Knudsen alone.
+
+This hybrid PSD is digitised and assembled in Document D.
+
+Harmonising Knudsen, Wenz, and Kießling for SKANN
+
+SKANN uses:
+
+Knudsen for simple conceptual interpretation of HF slopes,
+
+Wenz for identifying shipping/wind/thermal dominance regions,
+
+Kießling for accurate LF/MF/HF slopes and continuity.
+
+The combined PSD is:
+
+
+Smooth joins are applied at the boundaries to avoid discontinuities.
+
+This is the PSD that will be digitised for Stage  of the SKANN synthetic waveform generator.
+
+Digitisation Requirements for SKANN Ambient Noise
+
+To synthesise realistic ambient noise (Document D), SKANN requires a fully digitised, continuous PSD  across:
+
+
+with correctly modelled slopes in LF/MF/HF regions and seamless transitions at 200 Hz and 800 Hz.
+
+\section*{Required Frequency Grid}
+SKANN uses a dense logarithmic frequency grid for digitisation:
+
+
+where:
+
+
+A typical grid uses:
+
+
+log-spaced points for smooth PSD construction that preserves spectral shapes in LF, MF, and HF bands.
+
+Digitisation of Knudsen Curves
+
+If the Knudsen curves are to be used directly (for comparison or for certain scenarios):
+
+Convert the published values from kHz to Hz.
+
+Evaluate  on the log grid.
+
+Convert to PSD:
+
+
+Apply smoothing to remove visible kinks at the LF/HF boundary.
+
+However, Knudsen alone is never used in SKANN due to midband inaccuracies.
+
+Digitisation of Kießling Curves
+
+Kießling provides three power-law regions:
+
+
+Digitisation procedure:
+
+Evaluate each piece on the global log-frequency grid.
+
+Ensure continuity at boundaries:
+
+
+
+If necessary, adjust  to guarantee smooth joins.
+
+Apply log-space smoothing:
+
+
+This produces a continuous PSD surface without slope discontinuities that confuse CNN filterbanks.
+
+\section*{Sea-State Interpolation}
+For sea states SS = 0–6, each band has a separate intercept:
+
+
+where .
+
+Interpolation for non-integer sea states uses:
+
+
+This supports fractional sea states (e.g., SS = 2.6).
+
+Final SKANN PSD Construction
+
+The final PSD used by SKANN is assembled as:
+
+
+where the weight functions satisfy:
+
+
+
+
+A simple logistic blending function is used:
+
+
+
+and:
+
+
+A typical slope parameter is  Hz.
+
+SKANN-Ready PSD (0–32 kHz)
+
+The final PSD curve:
+
+
+is:
+
+continuous,
+
+differentiable,
+
+shape-accurate,
+
+sea-state dependent,
+
+numerically stable,
+
+spans 0–32 kHz,
+
+suitable for spectral synthesis (Document D).
+
+It is saved as:
+
+
+Figure: Digitised PSD for Example Sea State (Placeholder)
+
+Example SKANN-ready digitised PSD for Sea State 3.
+
+Notes for Document D (Waveform Synthesis)
+
+The digitised PSD from Document B is used in Document D as:
+
+
+Random-phase assignment and inverse FFT return the time-domain noise waveform .
+
+Document D provides the full synthesis pipeline.
+
+From PSD to Time-Domain Waveform (Bridge to Document D)
+
+Document B provides a fully digitised ambient-noise power spectral density  for any sea state. To produce an actual noise waveform , SKANN converts this PSD into a complex spectrum with random phase, then performs an inverse FFT. The full synthesis procedure is covered in Document D, but the essential steps are summarised here for completeness.
+
+Step 1: Assign the FFT frequency grid
+
+Choose sampling frequency  and FFT size :
+
+
+Frequency resolution:
+
+
+Step 2: Evaluate the PSD on the FFT grid
+
+Interpolate the digitised PSD  from Document B onto the FFT frequencies :
+
+
+Step 3: Convert PSD to amplitude spectrum
+
+For real-valued signals, the one-sided FFT amplitude is:
+
+
+This ensures that integrating the PSD recovers the correct RMS pressure.
+
+Step 4: Assign random phases
+
+Random phase values:
+
+
+Construct complex spectrum:
+
+
+Step 5: Impose Hermitian symmetry
+
+Because  is real:
+
+
+This constructs the negative-frequency half automatically.
+
+Step 6: Inverse FFT to obtain noise waveform
+
+The time-domain noise signal is:
+
+
+This produces a broadband noise waveform whose PSD matches the digitised spectrum from Document B.
+
+Step 7: Global RMS scaling
+
+If a target RMS level (or ambient SPL) is required, apply:
+
+
+Scaling is applied **once only**, after the IFFT.
+
+\section*{Result}
+This procedure yields a time-domain ambient noise waveform:
+
+
+whose RMS, PSD shape, slope, flattening, and sea-state dependence all match the curves constructed in Document B.
+
+Document D expands this into the full SKANN Stage  waveform synthesis pipeline.
+
+Appendix A — Unified List of Symbols (Documents A–D)
+
+This appendix defines all symbols used consistently across the SKANN document suite (A: Underwater Acoustics Basics, B: Ambient Noise Models, C: DSP/Sampling, D: Waveform Synthesis).
+
+Frequencies and Grids
+
+: acoustic frequency [Hz].
+
+: frequency in kHz ().
+
+: -th point in digitised frequency grid.
+
+: FFT frequency resolution [].
+
+: number of points in digitised PSD grid.
+
+Pressure and Levels
+
+: instantaneous acoustic pressure [Pa].
+
+: discrete-time pressure sample [Pa].
+
+: RMS pressure [Pa].
+
+: reference pressure = Pa.
+
+: mean-square pressure [Pa].
+
+SPL: sound pressure level [dB re Pa].
+
+NL: noise level [dB re Pa/Hz].
+
+: pressure PSD [Pa/Hz].
+
+: SKANN-processed PSD [Pa/Hz].
+
+Propagation and Medium Parameters
+
+r: range [m].
+
+: reference range (1 m).
+
+TL: transmission loss [dB].
+
+SL: source level [dB re 1 Pa @ 1 m].
+
+RL: received level [dB re 1 Pa].
+
+: seawater density (≈1025 kg/m).
+
+c: sound speed in seawater (≈1500 m/s).
+
+I: acoustic intensity [W/m].
+
+DFT/Synthesis Variables
+
+: Fourier transform of .
+
+: DFT of .
+
+: random phase in .
+
+IFFT: inverse discrete Fourier transform.
+
+: amplitude spectrum .
+
+\section*{Ambient Noise (Knudsen/Wenz/Kießling)}
+, , : intercept coefficients.
+
+, , : PSD scaling constants.
+
+: mid-frequency slope parameter ( 6–10).
+
+SS: sea state (0–6).
+
+, , : blending weights.
+
+Notes on Pandoc Compatibility
+
+\end{document}

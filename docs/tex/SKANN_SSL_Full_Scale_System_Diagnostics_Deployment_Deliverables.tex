@@ -1,0 +1,227 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath,amssymb,geometry,setspace,url}
+\geometry{margin=1in}
+\setstretch{1.2}
+\begin{document}
+\title{SKANN-SSL --- Full-Scale System: Diagnostics, Deployment \& Deliverables}
+\author{Oravont Systems LLP}
+\date{}
+\maketitle
+
+\section*{Document F (Very Short Version)}
+Full-Scale SKANN-SSL System: Diagnostics, Export, Deployment, Deliverables
+
+\section*{1. Purpose}
+Document F provides a concise summary of the diagnostics, deployment workflow, dataset strategy, and deliverables for the full-scale SKANN-SSL system. It complements Documents A–E.
+
+The objectives are:
+
+Define evaluation criteria for learned acoustic embeddings.
+
+Specify model export and deployment requirements.
+
+Describe dataset integration for large-scale self-supervised learning.
+
+List the final deliverables for the SKANN project.
+
+Explain how Mini-SKANN transitions into the full SKANN system.
+
+\section*{2. Diagnostics Suite}
+\section*{2.1 Embedding Quality Diagnostics}
+Redundancy Index: Measures the magnitude of off-diagonal elements of the cross-correlation matrix  used in Barlow Twins self-supervised learning. Lower values indicate better decorrelation.
+
+Dimensional Utilisation Score: Fraction of embedding dimensions whose variance exceeds a threshold, indicating whether the embedding space is well-used.
+
+Temporal Stability: Cosine similarity between embeddings of overlapping waveform segments to ensure consistent encoding.
+
+\section*{2.2 Robustness Diagnostics}
+Augmentation Stress Test: Evaluates the invariance of embeddings under time shifts, gain jitter, masking, and band dropout, the same perturbations used in Barlow Twins SSL training.
+
+SNR Robustness Sweep: Tests embedding performance across SNR values from  dB to  dB.
+
+Propagation and Doppler Variation: Applies simple propagation filters or Doppler stretch/compression to verify encoder robustness to underwater channel effects.
+
+\section*{2.3 Clustering Diagnostics}
+Cluster Persistence: Checks the stability of HDBSCAN cluster labels across runs. HDBSCAN is a density-based clustering method that does not require a pre-selected cluster count.
+
+Cluster Separability: Uses silhouette scores and distance ratios to evaluate cluster quality.
+
+Cluster Signature Extraction: Computes the average embedding, waveform, and spectrum for each cluster to support interpretation.
+
+3. Export and Deployment Plan
+
+3.1 ONNX Export
+
+The encoder must export cleanly to ONNX (Open Neural Network Exchange), a portable format that enables inference on CPUs, GPUs, and embedded devices.
+
+Modules to export:
+
+SKConv1D front-end (Selective Kernel 1D Convolution: a multi-kernel convolution block that adaptively fuses features using attention-like weights)
+
+1D SKA backbone
+
+SKConv2D backbone (Selective Kernel 2D Convolution, used after reshaping the features into a time–frequency-like representation)
+
+Hybrid encoder fusion layer
+
+Projection head removed for inference
+
+Input: , Output embedding:
+
+\section*{3.2 Deployment Targets}
+ARM Cortex-A processors
+
+DSP architectures
+
+Edge GPUs (e.g., NVIDIA Jetson Nano or Orin)
+
+Shore-side compute nodes
+
+\section*{3.3 Inference Optimisation}
+Optional 8-bit quantisation
+
+Fusing convolution–normalisation–activation
+
+Use of TensorRT (NVIDIA’s high-performance inference optimiser) for accelerated deployment on Jetson-class devices
+
+\section*{4. Dataset Integration}
+4.1 Two-Phase SSL Strategy
+
+Phase 1: Synthetic Pretraining Uses physics-inspired vessel signatures, broadband propulsion noise, cavitation bursts, and Doppler modifications to initialise the encoder.
+
+Phase 2: Real-World SSL
+
+Datasets include:
+
+NOAA: US National Oceanic and Atmospheric Administration’s passive acoustic archives.
+
+MBARI: Monterey Bay Aquarium Research Institute hydrophone data.
+
+JAMSTEC: Japan Agency for Marine-Earth Science and Technology observatory recordings.
+
+DCLDE: Detection, Classification, Localisation, and Density Estimation Workshop datasets.
+
+\section*{4.2 Standardisation Requirements}
+Sampling rate  Hz
+
+Clip length  samples
+
+RMS normalisation
+
+Metadata fields: source, timestamp, depth, SNR tag
+
+\section*{4.3 Dataset Expansion}
+Multichannel HAVS acoustic vector-sensor arrays
+
+Long-term seabed monitoring stations
+
+Fleet-noise signature archives for unsupervised vessel characterisation
+
+\section*{5. Deliverables}
+5.1 Code and Model Deliverables
+
+Implementation of Stages  to
+
+SSL-trained encoder weights
+
+ONNX deployment model
+
+Normalisation parameters
+
+Augmentation configuration files
+
+\section*{5.2 Documentation Deliverables}
+\section*{Document A: Underwater Acoustics}
+\section*{Document B: System Overview}
+Document C: DSP and Sampling Conventions
+
+\section*{Document D: Selective Kernel Network Architecture}
+Document E: Encoder and SSL Pipeline
+
+Document F: Diagnostics and Deployment (this document)
+
+5.3 Visual and Analytical Outputs
+
+Embedding visualisation methods such as:
+
+PCA: Principal Component Analysis (linear dimensionality reduction)
+
+UMAP: Non-linear manifold learning for cluster visualisation
+
+TSNE: Non-linear technique for revealing cluster structure
+
+Additional outputs:
+
+Cluster heatmaps and silhouette diagrams
+
+Robustness plots (SNR, augmentation, Doppler)
+
+Block diagrams for deployment architecture
+
+ONNX export package
+
+6. Scaling Path: Mini-SKANN to Full SKANN
+
+Mini-SKANN provides:
+
+Basic synthetic generator
+
+Minimal SKConv1D / SKConv2D blocks
+
+Simple Barlow Twins SSL (a redundancy-reduction SSL method)
+
+Basic clustering
+
+Full SKANN adds:
+
+Advanced physics-based synthetic generator
+
+Deeper SKA networks with dilation
+
+Multi-layer SKConv2D hierarchy
+
+Hybrid SSL using Barlow Twins and VICReg (Variance–Invariance–Covariance Regularisation)
+
+Multi-sensor HAVS fusion
+
+Deployment-grade optimisation with TensorRT/ONNX Runtime
+
+\section*{7. Conclusion}
+Document F describes the diagnostics, deployment, dataset requirements, and scaling strategy needed to operationalise the full SKANN-SSL system.
+
+Appendix A: List of Symbols
+
+: Sampling frequency (Hz)
+
+: Number of samples per 1-second clip
+
+: Embedding dimension
+
+: Cross-correlation matrix used in SSL
+
+SNR: Signal-to-noise ratio
+
+\section*{Appendix B: Short Forms}
+NOAA: National Oceanic and Atmospheric Administration
+
+MBARI: Monterey Bay Aquarium Research Institute
+
+JAMSTEC: Japan Agency for Marine-Earth Science and Technology
+
+DCLDE: Detection, Classification, Localisation, Density Estimation Workshop
+
+ONNX: Open Neural Network Exchange
+
+PCA: Principal Component Analysis
+
+UMAP: Uniform Manifold Approximation and Projection
+
+TSNE: t-distributed Stochastic Neighbour Embedding
+
+VICReg: Variance-Invariance-Covariance Regularisation
+
+SKConv1D / SKConv2D: Selective Kernel Convolution Layers
+
+TensorRT: NVIDIA inference optimisation runtime
+
+\end{document}

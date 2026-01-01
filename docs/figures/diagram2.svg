@@ -1,0 +1,109 @@
+<svg width="700" height="1500" xmlns="http://www.w3.org/2000/svg">
+
+  <style>
+    .box {
+      fill: #f2f7ff;
+      stroke: #3366cc;
+      stroke-width: 2;
+      rx: 12;
+      ry: 12;
+    }
+    .proc {
+      fill: #e8fff2;
+      stroke: #33aa55;
+      stroke-width: 2;
+      rx: 12;
+      ry: 12;
+    }
+    .loss {
+      fill: #fff2e6;
+      stroke: #ff9933;
+      stroke-width: 2;
+      rx: 12;
+      ry: 12;
+    }
+    text {
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 22px;
+      font-weight: 500;
+    }
+  </style>
+
+  <!-- UNIVERSAL TRIANGLE ARROWHEAD -->
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L6,3 z" fill="#000" />
+    </marker>
+  </defs>
+
+  <!-- BLOCKS -->
+
+  <rect class="box" x="200" y="40" width="300" height="80" />
+  <text x="265" y="90">Raw Audio (x)</text>
+
+  <rect class="proc" x="200" y="170" width="300" height="80" />
+  <text x="225" y="220">SKConv1D Filterbank</text>
+
+  <rect class="box" x="200" y="300" width="300" height="80" />
+  <text x="220" y="350">Learned Spectrogram</text>
+
+  <rect class="proc" x="200" y="430" width="300" height="80" />
+  <text x="245" y="480">SKConv2D Encoder</text>
+
+  <rect class="box" x="200" y="560" width="300" height="80" />
+  <text x="235" y="610">Embedding h ∈ ℝᴰ</text>
+
+  <rect class="proc" x="50" y="720" width="250" height="80" />
+  <text x="105" y="770">Augmentation 1</text>
+
+  <rect class="proc" x="400" y="720" width="250" height="80" />
+  <text x="455" y="770">Augmentation 2</text>
+
+  <rect class="proc" x="200" y="880" width="300" height="80" />
+  <text x="240" y="930">Siamese Encoder f(x)</text>
+
+  <rect class="box" x="200" y="1020" width="300" height="80" />
+  <text x="240" y="1070">Projector Head g(h)</text>
+
+  <rect class="box" x="200" y="1150" width="300" height="80" />
+  <text x="245" y="1200">Embeddings z₁, z₂</text>
+
+  <rect class="loss" x="200" y="1300" width="300" height="80" />
+  <text x="250" y="1350">Barlow Twins Loss</text>
+
+  <!-- ARROWS (simple, robust, browser-safe) -->
+
+  <!-- vertical arrows -->
+  <line x1="350" y1="120" x2="350" y2="170"
+        stroke="#000" stroke-width="4" marker-end="url(#arrow)" />
+
+  <line x1="350" y1="250" x2="350" y2="300"
+        stroke="#000" stroke-width="4" marker-end="url(#arrow)" />
+
+  <line x1="350" y1="380" x2="350" y2="430"
+        stroke="#000" stroke-width="4" marker-end="url(#arrow)" />
+
+  <line x1="350" y1="510" x2="350" y2="560"
+        stroke="#000" stroke-width="4" marker-end="url(#arrow)" />
+
+  <!-- branching -->
+  <line x1="350" y1="640" x2="175" y2="720"
+        stroke="#000" stroke-width="4" marker-end="url(#arrow)" />
+  <line x1="350" y1="640" x2="525" y2="720"
+        stroke="#000" stroke-width="4" marker-end="url(#arrow)" />
+
+  <line x1="175" y1="800" x2="350" y2="880"
+        stroke="#000" stroke-width="4" marker-end="url(#arrow)" />
+  <line x1="525" y1="800" x2="350" y2="880"
+        stroke="#000" stroke-width="4" marker-end="url(#arrow)" />
+
+  <line x1="350" y1="960" x2="350" y2="1020"
+        stroke="#000" stroke-width="4" marker-end="url(#arrow)" />
+
+  <line x1="350" y1="1100" x2="350" y2="1150"
+        stroke="#000" stroke-width="4" marker-end="url(#arrow)" />
+
+  <line x1="350" y1="1230" x2="350" y2="1300"
+        stroke="#000" stroke-width="4" marker-end="url(#arrow)" />
+
+</svg>

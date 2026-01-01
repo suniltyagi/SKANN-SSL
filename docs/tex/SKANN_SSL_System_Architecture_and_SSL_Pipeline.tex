@@ -1,0 +1,424 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath,amssymb,geometry,setspace,url,listings}
+\geometry{margin=1in}
+\setstretch{1.2}
+\begin{document}
+\title{SKANN-SSL --- System Architecture \& Self-Supervised Learning Pipeline (Stages 0--7)}
+\author{Oravont Systems LLP}
+\date{}
+\maketitle
+
+SKANN Document E
+System Architecture and SSL Training Pipeline
+(Stages 0–7: Encoder, SSL and Clustering)
+
+Oravont Systems LLP
+
+Introduction and Scope
+
+This document (Document E) describes the end–to–end architecture of the SKANN encoder and its self–supervised learning (SSL) training pipeline. It is aligned with the Roadmap_document and covers Stages 0–7:
+
+Stage 0: Preprocessing and data standardisation.
+
+Stage 1: Multi–branch SKConv1D front–end.
+
+Stage 2: 1D SKA backbone (temporal hierarchy).
+
+Stage 3: SKConv2D hierarchical encoder (time–frequency).
+
+Stage 4: HybridSKEncoder (1D+2D fusion).
+
+Stage 5: SSL wrapper (Barlow Twins).
+
+Stage 6: Augmentation engine.
+
+Stage 7: Embedding extraction and clustering.
+
+The design is explicitly self–supervised. In realistic deployment with hydroacoustic vector sensors (HAVS), labels for individual vessels or events are not available. SKANN therefore focuses on learning high–quality, decorrelated feature embeddings from unlabelled waveforms, which can then be used for clustering, anomaly detection, and exploratory analysis.
+
+A separate document (Document F) will describe diagnostics, ONNX export, embedded deployment, dataset planning, and project deliverables. Documents A–D provide the acoustic and DSP foundations (pressure, levels, Knudsen curves, synthetic ambient noise, and basic sampling logic) on which this architecture rests.
+
+Stage 0: Preprocessing and Data Standardisation
+
+Stage 0 prepares raw pressure time series for ingestion by the learned front–end. The goal is to enforce consistent sampling, normalisation, and segmentation while preserving the acoustic content of interest.
+
+\section*{Input}
+The input to the system is a real–valued pressure waveform
+
+
+measured in pascals [Pa] at sampling frequency .
+
+\section*{Operations}
+Typical Stage 0 steps are:
+
+Resampling (optional). If required, resample to a standard  (for example  Hz or  Hz) to ensure consistent FFT bin spacing and model shapes.
+
+DC removal. Subtract the sample mean:
+
+
+Amplitude normalisation. Optionally normalise by an estimate of the RMS or a robust scale (e.g. median absolute deviation) to control dynamic range:
+
+
+where  is an RMS or robust scale and  avoids division by zero.
+
+Segmentation. Cut the stream into fixed–length frames of  seconds:
+
+
+samples per frame. Each frame is treated as an independent training example:
+
+
+Sampling Frequency and Clip Length (Fixed for SKANN)
+
+Following joint decisions in Documents C and D, SKANN uses a fixed sampling frequency and clip length:
+
+
+Thus each training and inference clip represents a 1 s waveform segment. The choice of  ensures 1 Hz FFT resolution and compatibility with the ambient-noise synthesis pipeline.
+
+Channel stacking (optional). For HAVS, multiple components (pressure plus particle velocity) may be stacked along a channel dimension; in this document we treat the single–channel case for simplicity.
+
+\section*{Output}
+The output tensor of Stage 0 has shape
+
+
+where  is the batch size, the middle dimension is the single input channel, and  is the number of time samples per clip.
+
+Stage 1: Multi–Branch SKConv1D Front–End
+
+Stage 1 replaces a fixed filterbank with a learned, multi–branch 1D convolutional front–end inspired by Selective Kernel networks. It learns bandpass–like filters directly from data, at multiple time scales.
+
+\section*{Motivation}
+Underwater noise contains a mixture of:
+
+relatively slow fluctuations (low–frequency ambient noise),
+
+mid–band tonals (propeller lines, machinery tones),
+
+short transients and higher–frequency structure.
+
+Using several 1D convolution branches with different kernel lengths enables the network to capture all of these phenomena in parallel.
+
+\section*{Architecture}
+Let the Stage 0 output be . We define  parallel Conv1D branches indexed by :
+
+
+where each branch uses a different kernel size (e.g. , , ) and identical output channel count . All branches are stride–aligned such that their time dimension  matches.
+
+\section*{Selective Kernel Fusion}
+The parallel outputs are fused by a simple attention mechanism:
+
+Aggregate each branch using global average pooling over time:
+
+
+Concatenate and pass through a small gating MLP that produces branch weights , normalised so that  for each example.
+
+Form the fused output
+
+
+The result  has shape  and serves as the input to the 1D SKA backbone.
+
+In SKANN, the SKConv1D front-end uses kernel sizes 3,5,7,11,153, 5, 7, 11, 153,5,7,11,15 as originally defined in the Roadmap_document.
+
+Stage 2: 1D SKA Backbone
+
+Stage 2 is a hierarchical 1D backbone composed of several SKConv1D blocks stacked in depth. It refines and compresses the temporal representation from Stage 1.
+
+SKA Block Structure
+
+Each SKA block consists of:
+
+multiple Conv1D branches with different kernel sizes (as in Stage 1), possibly with dilation to enlarge the receptive field;
+
+a selective kernel fusion step;
+
+a residual connection around the block.
+
+Given input  to block , the output is
+
+
+\section*{Temporal Downsampling}
+Some SKA blocks may downsample the time dimension using strided convolution or pooling, leading to progressively shorter  and larger channel count . After  blocks we obtain
+
+
+Stage 3: SKConv2D Hierarchical Encoder
+
+Stage 3 lifts the 1D representation into a 2D time–frequency space and applies SKConv2D blocks. This allows the encoder to capture joint temporal and “pseudo–spectral” patterns.
+
+Reshaping to 2D
+
+We interpret the channel dimension  as a frequency–like axis and the time dimension  as the temporal axis, reshaping
+
+
+so that  can be processed by 2D convolutions.
+
+SKConv2D Blocks
+
+An SKConv2D block mirrors the 1D SKA concept:
+
+parallel 2D Conv branches with kernels such as , , ;
+
+a selective kernel fusion stage across branches;
+
+a residual connection.
+
+After several SKConv2D blocks and optional 2D pooling, we obtain
+
+
+where  and  are reduced frequency–like and time dimensions.
+
+Following the Roadmap plan, the 1D feature map [B,C1D,T] is reshaped to [B,1,C1D,T] and processed by hierarchical SKConv2D blocks.
+
+Stage 4: HybridSKEncoder (1D + 2D Fusion)
+
+Stage 4 fuses the 1D temporal representation  and the 2D representation  into a single hybrid embedding that will be used for self–supervised learning.
+
+Pooling and Flattening
+
+We first perform global pooling:
+
+1D branch:
+
+
+2D branch:
+
+
+\section*{Fusion}
+The pooled vectors are concatenated
+
+
+and passed through a small fusion MLP:
+
+
+where  is the encoder embedding dimension. This  is the input to the SSL projection head.
+
+Stage 5: Self–Supervised Learning (SSL) Wrapper
+
+Stage 5 defines the SSL objective used to train Stages 1–4 without labels. We adopt a Barlow Twins–style redundancy–reduction loss.
+
+\section*{Two–View Generation}
+For each input clip  from Stage 0, the augmentation engine (Stage 6) produces two correlated views:
+
+
+These are processed independently by Stages 1–4, sharing weights:
+
+
+\section*{Projection Head}
+A small MLP projection head  maps encoder outputs to projection space:
+
+
+with .
+
+\section*{Barlow Twins Loss (Conceptual Form)}
+We normalise each dimension of  and  across the batch, then form the empirical cross–correlation matrix  with entries . The loss encourages:
+
+(invariance across views),
+
+for  (decorrelation).
+
+The encoder and projection head weights are updated to minimise this objective over many unlabelled clips.
+
+After SSL training, the projection head  can be discarded, and  is used as the core SKANN embedding.
+
+\section*{Stage 6: Augmentation Engine}
+The augmentation engine generates the two views required for SSL. It must preserve physically meaningful structure while providing enough variation for robust representation learning.
+
+Typical augmentations include:
+
+Time shift. Circular or padded shifts by a small fraction of the clip length.
+
+Gain perturbation. Multiplying by a random factor close to unity to simulate mild level variations.
+
+Time masking. Zeroing short contiguous spans in the time domain to encourage robustness to dropouts.
+
+Band dropout (optional). Applying a shallow band–stop filter in a random frequency band to encourage spectral robustness.
+
+Micro–noise injection. Adding low–level synthetic noise consistent with underwater PSD envelopes.
+
+The augmentation policy can be tuned experimentally. The same module is used both during pretraining and in any subsequent fine–tuning experiments.
+
+Stage 7: Embedding Extraction and Clustering
+
+Once SSL pretraining is complete, the projection head is discarded and the encoder (Stages 1–4) is frozen. Stage 7 describes how embeddings are extracted and used for unsupervised analysis.
+
+\section*{Embedding Extraction}
+For each clip  (preprocessed by Stage 0), we run:
+
+\section*{(Stage 0),}
+\section*{(Stage 1),}
+\section*{(Stage 2),}
+\section*{(Stage 3),}
+\section*{(Stage 4).}
+The result is a fixed–dimensional embedding
+
+
+per clip.
+
+\section*{Clustering}
+Collections of embeddings are then clustered using methods such as:
+
+–means (for a fixed number of clusters),
+
+HDBSCAN or DBSCAN (for density–based clustering),
+
+hierarchical clustering for exploring multiscale structure.
+
+Dimensionality reduction (for example PCA or UMAP) can be applied for visualisation. Clusters may correspond to different sea states, different vessel–noise regimes, or specific tonal patterns. In the HAVS deployment scenario, these clusters provide a basis for unlabelled pattern discovery and change detection.
+
+Stage 0–7: End–to–End SKANN Pseudocode Suite
+
+The following high–level pseudocode outlines one SSL training epoch for SKANN.
+
+\section*{Encoder Forward Pass}
+def encode_clip(x):
+    \# x: [1, N] waveform after Stage 0
+    X = x.view(1, 1, N)          \# [B=1, C=1, T]
+    Y1 = stage1_skconv1d(X)      \# Stage 1: SKConv1D front-end
+    U1 = stage2_ska_1d(Y1)       \# Stage 2: 1D SKA backbone
+    V0 = reshape_to_2d(U1)       \# [B, 1, C_1D, T_1D]
+    V2 = stage3_skconv2d(V0)     \# Stage 3: SKConv2D backbone
+    z_enc = stage4_hybrid(U1, V2)\# Stage 4: Hybrid encoder output
+    return z_enc                 \# [B, D_enc]
+
+SSL Training Loop (One Epoch)
+
+for batch in dataloader:  \# batch: [B, N]
+    x = batch                         \# Stage 0 preprocessed clips
+    x1 = augment(x)                   \# Stage 6: view 1
+    x2 = augment(x)                   \# Stage 6: view 2
+
+    z1 = encode_clip(x1)              \# Stages 1-4
+    z2 = encode_clip(x2)              \# Stages 1-4
+
+    y1 = projector(z1)                \# Stage 5: projection head
+    y2 = projector(z2)
+
+    loss = barlow_twins_loss(y1, y2)  \# Stage 5: SSL objective
+
+    optimiser.zero_grad()
+    loss.backward()
+    optimiser.step()
+
+Embedding Extraction and Clustering
+
+embeddings = []
+for batch in dataloader_eval:    \# Unlabelled evaluation clips
+    x = batch                    \# Stage 0 preprocessed
+    z = encode_clip(x)           \# Stages 1-4
+    embeddings.append(z)
+
+Z = concat(embeddings)           \# [N_clips, D_enc]
+Z_reduced = pca_or_umap(Z)       \# Optional
+clusters = clustering_algo(Z)    \# e.g. k-means, HDBSCAN
+
+ASCII System Overview
+
+The overall Stage 0–7 pipeline can be summarised as:
+
+Raw waveform p(n)
+            |
+            v
+   Stage 0: Preprocessing
+            |
+            v
+   Stage 1: SKConv1D front-end
+            |
+            v
+   Stage 2: 1D SKA backbone
+            |
+            v
+   Stage 3: SKConv2D backbone
+            |
+            v
+   Stage 4: HybridSKEncoder (1D + 2D fusion)
+            |
+            v
+   Stage 5: SSL (Barlow Twins pretraining)
+            |
+            v
+   Stage 6: Augmentation engine 
+            (generates two SSL views for Stage 5)
+            |
+            v
+   Stage 7: Embedding extraction + clustering
+
+\section*{Appendix A: Tensor Shapes}
+Indicative shapes for a single batch:
+
+\section*{Appendix B: Key Hyperparameters}
+Typical hyperparameters (to be tuned per dataset):
+
+Sampling rate  and clip length .
+
+Sampling rate and clip length (fixed in current SKANN design to  Hz,  samples).
+
+SKConv1D branch kernel sizes and channel counts.
+
+Number of SKA 1D blocks and downsampling schedule.
+
+Number of SKConv2D blocks, kernel sizes, and pooling strategy.
+
+Encoder embedding dimension .
+
+Projection head dimension  for SSL.
+
+Batch size, learning rate, optimiser type.
+
+Augmentation strengths (time shift range, gain jitter range, masking lengths).
+
+Clustering algorithm choice and its parameters (e.g. number of clusters for –means).
+
+\section*{Appendix C: Diagram Placeholders}
+The following figure placeholders are recommended for the final formatted document:
+
+Figure 1: Stage 0–7 block diagram of SKANN (boxes and arrows).
+
+Figure 2: SKConv1D multi–branch front–end (kernel sizes and fusion).
+
+Figure 3: SKConv2D block structure and fusion.
+
+Figure 4: Barlow Twins two–view SSL schematic.
+
+Figure 5: Example clustering of embeddings in 2D projection space.
+
+These can be drawn in any preferred diagramming tool and added to the Word or PDF version as required.
+
+Appendix D: List of Symbols
+
+- Discrete-time pressure waveform sample at index , in pascals (Pa).
+
+- Sampling frequency in hertz (Hz). In SKANN this is fixed to  Hz.
+
+- Number of samples per Stage 0 frame. Fixed to  (1-second clip at ).
+
+- Stage 0 preprocessed tensor, .
+
+- Output of Stage 1 SKConv1D front-end, .
+
+- Output of Stage 2 1D SKA backbone, .
+
+- Output of Stage 3 SKConv2D backbone, .
+
+- Pooled 1D feature vector from Stage 2, .
+
+- Pooled 2D feature vector from Stage 3, .
+
+- Hybrid encoder embedding from Stage 4, .
+
+- Projection-space vectors from Stage 5 (SSL), each in .
+
+- Cross-correlation matrix between SSL views, .
+
+- Matrix of embeddings for offline clustering, .
+
+- Batch size.
+
+- Encoder embedding dimension.
+
+- Projection-head dimension used by the SSL loss.
+
+- Channel counts at various stages of the encoder.
+
+- Temporal dimensions at various stages of the encoder.
+
+- The frequency-like dimension created by the 2D reshape.
+
+\end{document}

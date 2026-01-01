@@ -1,0 +1,414 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath,amssymb,geometry,setspace,url}
+\geometry{margin=1in}
+\setstretch{1.2}
+\begin{document}
+\title{SKANN-SSL --- Ambient Noise Synthesis (Stage --1)}
+\author{Oravont Systems LLP}
+\date{}
+\maketitle
+
+SKANN Document D
+Ambient Noise Synthesis (Stage )
+Generating Time-Domain Waveforms from Spectral Models
+
+Oravont Systems LLP
+
+\section*{Introduction}
+Document D describes the full methodology for generating time-domain ambient-noise waveforms  from the blended and digitised PSD  produced in Document B. This spectral-to-time conversion forms the basis of SKANN Stage , where synthetic ocean-noise waveforms are produced for:
+
+pretraining the SSL backbone,
+
+data augmentation,
+
+controlled SNR mixing with vessel signatures,
+
+benchmarking detection sensitivity.
+
+Document D covers all required steps:
+
+FFT grid construction,
+
+amplitude spectrum computation,
+
+random phase generation,
+
+Hermitian symmetry enforcement,
+
+inverse FFT,
+
+amplitude normalisation,
+
+multi-segment and multi-channel synthesis.
+
+\section*{Overall Synthesis Pipeline}
+The synthesis process maps a PSD to a time-domain signal using the following sequence:
+
+Digitised PSD (from Document B):
+
+
+Assign FFT frequency grid corresponding to sampling rate  and FFT size :
+
+
+Interpolate  onto .
+
+Compute amplitude spectrum:
+
+
+Assign random phase:
+
+
+Construct complex spectrum:
+
+
+Impose Hermitian symmetry to ensure  is real.
+
+Inverse FFT:
+
+
+RMS scaling to match physical sea-state levels.
+
+\section*{Diagram Placeholder: Complete Synthesis Flow}
+Conceptual pipeline from PSD to time-domain waveform.
+
+Construction of the FFT Frequency Grid
+
+Let the chosen sampling rate and FFT size be:
+
+
+The frequency resolution is:
+
+
+Thus the -th discrete frequency is:
+
+
+For real-valued signals, only
+
+
+contain unique frequencies.
+
+Interpolation of the PSD onto the FFT Grid
+
+Document B produces a log-spaced set of PSD points:
+
+
+where  may extend to 32 kHz.
+
+To synthesise time-domain noise, the PSD must be evaluated on the FFT grid :
+
+
+Interpolation is performed in log-frequency:
+
+
+because ambient noise follows power-law relationships.
+
+Amplitude Spectrum from PSD
+
+A PSD expresses power per unit bandwidth:
+
+
+\section*{Thus:}
+
+This ensures that:
+
+
+which matches the correct total mean-square pressure.
+
+Worked Example: Sea State 3 at 1 kHz (Δf = 1 Hz)
+
+Consider Sea State 3 at . From Document B, the noise level is:
+
+
+Units: dB re 1 .
+
+Convert this to linear PSD:
+
+
+\section*{Numerically:}
+
+\section*{With :}
+
+Thus the one-sided FFT magnitude at 1 kHz is:
+
+
+Time-Domain Interpretation of a Single Component
+
+A positive-frequency bin and its conjugate form a real cosine with **twice** the one-sided amplitude:
+
+
+\section*{Numerically:}
+
+\section*{Random Phase Assignment}
+Ambient noise has no deterministic phase, so each bin is assigned
+
+
+and
+
+
+Worked Example: Random Phase at 1 kHz
+
+Amplitude from previous section:
+
+
+Step 1: draw :
+
+
+Step 2: convert to phase:
+
+
+Step 3: construct the complex spectrum value:
+
+
+\section*{Thus:}
+
+\section*{Hermitian Symmetry: Explicit Conjugate Assignment}
+For a real time-domain waveform, the FFT must satisfy:
+
+
+With  and :
+
+
+Compute the conjugate:
+
+
+Assign to symmetric bin:
+
+
+\section*{Resulting Time-Domain Tone}
+The pair  produces:
+
+
+\section*{At :}
+
+\section*{At :}
+
+\section*{Hermitian Symmetry Enforcement}
+To guarantee real-valued samples:
+
+
+and special bins:
+
+
+After symmetry is imposed, the spectrum is ready for the inverse FFT.
+
+Inverse FFT
+
+The synthetic time-domain waveform is obtained via:
+
+
+Because Hermitian symmetry is satisfied,  is guaranteed to be real:
+
+
+The waveform retains the exact PSD shape defined in Document B and is ready for RMS-level scaling.
+
+RMS Scaling and SPL Matching
+
+The raw IFFT output has correct spectral shape but arbitrary amplitude. To match a desired sea-state or absolute level, the waveform is scaled to a target RMS value.
+
+Let the generated signal have RMS:
+
+
+Let the desired RMS correspond to a physical SPL:
+
+
+with reference pressure .
+
+Scale the signal:
+
+
+This is applied once only, after the IFFT.
+
+\section*{Generating Multi-Second Noise Segments}
+The previous steps generate a single noise frame of length  samples. To produce long-duration noise (e.g., 2–30 seconds), multiple IFFTs are concatenated.
+
+A frame produces duration:
+
+
+\section*{Example:}
+
+A multi-second duration  requires:
+
+
+frames.
+
+\section*{Avoiding Discontinuities Between Frames}
+Simply concatenating IFFT outputs can produce discontinuities at frame boundaries because each frame uses independent random phase. SKANN uses one of two solutions:
+
+\section*{Method 1: Overlap–Add (Recommended)}
+Each frame is windowed with a smooth taper (50\% overlap):
+
+
+Frames are placed into the output with:
+
+
+The final signal is:
+
+
+Window choice ensures:
+
+
+so the energy is preserved.
+
+\section*{Method 2: Correlated Phase Propagation}
+To ensure smooth phase continuation, the random phases can be generated as:
+
+
+where  is small and random. This preserves continuity at the cost of reduced randomness.
+
+SKANN uses Method 1 because it is simpler, robust, and produces natural noise.
+
+Long-Duration Synthesis (Minutes or Hours)
+
+For extended-duration acoustic backgrounds (e.g., simulation of hydrophone streams):
+
+use block-based OLA synthesis,
+
+randomise seeds per block,
+
+enforce continuity using Method 1,
+
+periodically re-normalise RMS every 10–20 minutes.
+
+Output lengths of 1 hour or more are straightforward.
+
+\section*{Multi-Channel Synthesis (Optional)}
+For hydrophone arrays, including vector sensors, SKANN supports multi-channel noise synthesis.
+
+\section*{Independent-Channel Noise}
+If channels are assumed uncorrelated:
+
+
+with independent phases .
+
+\section*{Spatially Correlated Noise}
+If physical spatial correlations are required (e.g., HAVS dipole sensors):
+
+
+where:
+
+is the base noise spectrum,
+
+is the channel’s spatial response.
+
+\section*{Examples:}
+
+These models allow SKANN to simulate:
+
+tri-axial vector sensors,
+
+hydrophone arrays,
+
+correlated ambient-noise fields.
+
+Diagram Placeholder: Multi-Segment OLA
+
+Overlap–Add synthesis of long ambient-noise waveforms.
+
+\section*{Complete Synthesis Algorithm (Pseudocode)}
+This section summarises the full procedure in algorithmic form. The notation matches Documents B and C.
+
+\section*{Input}
+Digitised PSD  over 0–32 kHz (Document B)
+
+Sampling rate  Hz
+
+FFT size  (typically 32768 for  Hz)
+
+Desired duration
+
+Target RMS level
+
+\section*{Output}
+Time-domain ambient-noise waveform .
+
+\section*{Pseudocode}
+1. Construct FFT frequencies:
+       f_k = k * f_s / N,       k = 0 .. N/2
+
+2. Interpolate PSD onto FFT grid:
+       Spp_fk = interp( Spp_fi → f_k )
+
+3. Compute amplitude spectrum:
+       A_k = sqrt( Spp_fk * Δf )
+
+4. Generate random phases:
+       φ_k ~ Uniform(0, 2π)
+
+5. Construct complex spectrum:
+       P[k] = A_k * exp(j φ_k)
+
+6. Impose Hermitian symmetry:
+       P[N-k] = conj(P[k])
+
+7. Inverse FFT:
+       p_frame = IFFT(P)
+
+8. RMS-scale the frame:
+       p_frame ← p_frame * (p_rms_target / p_rms_generated)
+
+9. For long durations:
+       - Generate M frames
+       - Apply Hann window
+       - Overlap-add with hop = N/2
+
+10. Output:
+       p_long[n]
+
+Integration with Stage 0 (Document C)
+
+When  is produced:
+
+Resampling is not needed because synthesis already uses  Hz.
+
+DC offset is already zero (expected from IFFT), but Stage 0 verifies:
+
+
+Amplitude normalisation in Stage 0 is typically disabled for synthetic noise, since Stage  has applied the correct RMS.
+
+Segmentation into fixed-length frames (e.g. 4096 samples) is performed exactly as for real hydrophone data.
+
+Silence trimming is skipped; noise has no silent frames.
+
+Thus the output of Document D becomes a valid input for Stage 0 and then for the learned filterbank in Stage 1.
+
+Diagram Placeholder: Full Stage  to Stage 0 Interface
+
+Integration of synthetic noise into the SKANN processing chain.
+
+Appendix A — Unified List of Symbols (Documents A–D)
+
+\section*{Spectral Quantities}
+: FFT bin frequency [Hz]
+
+: frequency resolution []
+
+: pressure PSD [Pa/Hz]
+
+: amplitude spectrum
+
+: random phase
+
+\section*{Time-Domain Quantities}
+: discrete-time waveform
+
+: RMS pressure
+
+Pa: reference pressure
+
+\section*{Noise Model Components}
+: noise level [dB re 1 Pa/Hz]
+
+SS: sea state (0–6)
+
+: PSD scaling
+
+\section*{Pandoc Compatibility Notes}
+No TikZ or pgfplots used.
+
+Figures implemented using figure with boxed placeholders.
+
+Math expressions closed properly for DOCX conversion.
+
+Standard packages only: amsmath, amssymb, geometry, setspace, url.
+
+\end{document}

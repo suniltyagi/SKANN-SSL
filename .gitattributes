@@ -1,0 +1,13 @@
+# Normalize line endings across platforms
+* text=auto
+
+# Documentation
+*.md   text eol=lf
+*.tex  text eol=lf
+
+# Source code (future-proof)
+*.py   text eol=lf
+*.c    text eol=lf
+*.cpp  text eol=lf
+*.h    text eol=lf
+*.sh   text eol=lf
