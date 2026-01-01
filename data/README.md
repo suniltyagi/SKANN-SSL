@@ -51,6 +51,9 @@ The `master_dataset_manifest.csv` is the **single source of truth** for the data
 | SNR | 6.0 dB |
 | Format | float32 |
 
+**Rationale:** This prototype dataset is intentionally band-limited to ≤ 8 kHz (fs = 16 kHz) for rapid validation; no distinguishing features are expected above 8 kHz for this prototype.
+
+**Assumption:** Downstream models should expect data at a 16 kHz sampling frequency and should not expect information above 8 kHz for this dataset.
 ---
 
 ## Full-Factorial Design
