@@ -12,13 +12,23 @@ This index defines the hierarchy, authority, and relationships between all docum
 
 ---
 
+### Canonical Stage Ordering (Project-Wide)
+
+Whenever development stages are referenced in this project, the canonical order is:
+
+Stage −1 → Stage 0 → Stage 1 → Stage 2 → Stage 3 → Stage 4 → Stage 5 → Stage 6 → Stage 7
+
+Stage numbers describe processing sequence only and do not imply document ownership or scope.
+
+---
+
 ## Canonical Overview
 
 ### SKANN-SSL — Project Roadmap & End-to-End System Overview
 **Files:**
-- SKANN_SSL_Project_Roadmap.md
-- SKANN_SSL_Project_Roadmap.tex
-- diagram2.svg (flowchart source used in LaTeX)
+- docs/SKANN_SSL_Project_Roadmap.md
+- docs/tex/SKANN_SSL_Project_Roadmap.tex
+- docs/figures/diagram2.svg (flowchart source used in LaTeX)
 
 **Role:** Top-level narrative, execution roadmap, and system overview for SKANN-SSL.
 
@@ -30,8 +40,8 @@ This index defines the hierarchy, authority, and relationships between all docum
 
 ### SKANN-SSL — Underwater Acoustics Foundations
 **Files:**
-- SKANN_SSL_Underwater_Acoustics_Foundations.tex
-- SKANN_SSL_Underwater_Acoustics_Foundations.md
+- docs/SKANN_SSL_Underwater_Acoustics_Foundations.md
+- docs/tex/SKANN_SSL_Underwater_Acoustics_Foundations.tex
 
 **Role:** Physical and mathematical foundations for interpreting ocean-borne sound and defining SKANN acoustic quantities.
 
@@ -43,8 +53,8 @@ This index defines the hierarchy, authority, and relationships between all docum
 
 ### SKANN-SSL — Ambient Noise Models (Knudsen, Wenz, Kießling)
 **Files:**
-- SKANN_SSL_Ambient_Noise_Models_Knudsen_Wenz_Kiessling.tex
-- SKANN_SSL_Ambient_Noise_Models_Knudsen_Wenz_Kiessling.md
+- docs/SKANN_SSL_Ambient_Noise_Models_Knudsen_Wenz_Kiessling.md
+- docs/tex/SKANN_SSL_Ambient_Noise_Models_Knudsen_Wenz_Kiessling.tex
 
 **Role:** Ambient-noise modelling framework (conceptual + empirical + modern parametrisations) for ocean PSDs.
 
@@ -52,8 +62,8 @@ This index defines the hierarchy, authority, and relationships between all docum
 
 ### SKANN-SSL — Parametric Sea-Noise Model from Digitised Knudsen Curves
 **Files:**
-- SKANN_SSL_Parametric_Sea_Noise_Model_Knudsen.tex
-- SKANN_SSL_Parametric_Sea_Noise_Model_Knudsen.md
+- docs/SKANN_SSL_Parametric_Sea_Noise_Model_Knudsen.md
+- docs/tex/SKANN_SSL_Parametric_Sea_Noise_Model_Knudsen.tex
 
 **Role:** Analytic, continuous piecewise parametric sea-noise PSD derived from digitised Knudsen curves (SKANN simulation model).
 
@@ -65,8 +75,10 @@ This index defines the hierarchy, authority, and relationships between all docum
 
 ### SKANN-SSL — DSP & Sampling Standards (Stage 0 Preprocessing)
 **Files:**
-- SKANN_SSL_DSP_and_Sampling_Standards_Stage0.tex
-- SKANN_SSL_DSP_and_Sampling_Standards_Stage0.md
+**Files:**
+- docs/SKANN_SSL_DSP_and_Sampling_Standards_Stage0.md
+- docs/tex/SKANN_SSL_DSP_and_Sampling_Standards_Stage0.tex
+
 
 **Role:** DSP and preprocessing standards (sampling, resampling, DC removal, windowing/overlap, PSD estimation, normalisation, tensor prep).
 
@@ -78,8 +90,10 @@ This index defines the hierarchy, authority, and relationships between all docum
 
 ### SKANN-SSL — Ambient Noise Synthesis (Stage −1)
 **Files:**
-- SKANN_SSL_Ambient_Noise_Synthesis_StageMinus1.tex
-- SKANN_SSL_Ambient_Noise_Synthesis_StageMinus1.md
+**Files:**
+- docs/SKANN_SSL_Ambient_Noise_Synthesis_StageMinus1.md
+- docs/tex/SKANN_SSL_Ambient_Noise_Synthesis_StageMinus1.tex
+
 
 **Role:** Procedure for generating time-domain ambient-noise waveforms from PSD models (PSD → random phase → IFFT → RMS; OLA for long durations).
 
@@ -104,8 +118,10 @@ This index defines the hierarchy, authority, and relationships between all docum
 
 ### SKANN-SSL — Full-Scale System: Diagnostics, Deployment & Deliverables
 **Files:**
-- SKANN_SSL_Full_Scale_System_Diagnostics_Deployment_Deliverables.tex
-- SKANN_SSL_Full_Scale_System_Diagnostics_Deployment_Deliverables.md
+**Files:**
+- docs/SKANN_SSL_Full_Scale_System_Diagnostics_Deployment_Deliverables.md
+- docs/tex/SKANN_SSL_Full_Scale_System_Diagnostics_Deployment_Deliverables.tex
+
 
 **Role:** Diagnostics suite, dataset strategy, export/deployment workflow, and deliverables list for operationalising SKANN-SSL.
 

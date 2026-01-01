@@ -9,40 +9,61 @@ A complete, modern, scalable self-supervised acoustic representation learning sy
 ## System Flowchart
 
 ```
+## System Flowchart
+
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           SKANN-SSL Pipeline                                 │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  Raw Waveform [B, 1, 16000]                                                 │
+│  Stage −1: Synthetic Data Generation                                         │
+│    • Sea noise + ship noise synthesis, SNR mixing                            │
+│    • Output: waveform clips (Pa) + manifest                                  │
+│                                                                              │
 │         │                                                                    │
 │         ▼                                                                    │
-│  ┌─────────────────────────────────────────┐                                │
-│  │      Stage 1: Learned Filterbank        │                                │
-│  │      SKConv1D (kernels 3,5,7,11,15)     │                                │
-│  └─────────────────────────────────────────┘                                │
-│         │                                                                    │
-│         ▼ [B, 64, T]                                                        │
-│  ┌─────────────────────────────────────────┐                                │
-│  │      Stage 2: 2D Acoustic Encoder       │                                │
-│  │      SKConv2D blocks + Global Pool      │                                │
-│  └─────────────────────────────────────────┘                                │
-│         │                                                                    │
-│         ▼ [B, D] embedding h                                                │
-│  ┌─────────────────────────────────────────┐                                │
-│  │      Stage 3: SSL (Barlow Twins)        │                                │
-│  │                                         │                                │
-│  │   x ──┬── Aug1 ──┐                      │                                │
-│  │       │          ├── Encoder ── Proj ──┬── Loss                          │
-│  │       └── Aug2 ──┘                      │                                │
-│  └─────────────────────────────────────────┘                                │
+│  Stage 0: Preprocessing & Standardisation                                    │
+│    • DC removal, RMS normalisation, reshape → [B, 1, 16000]                  │
+│    • Train/val/test splits via manifest                                      │
+│                                                                              │
 │         │                                                                    │
 │         ▼                                                                    │
-│  ┌─────────────────────────────────────────┐                                │
-│  │      Clustering (HDBSCAN)               │                                │
-│  │      Unsupervised vessel categorization │                                │
-│  └─────────────────────────────────────────┘                                │
+│  Stage 1: Learned Filterbank (SKConv1D)                                      │
+│    • Multi-branch kernels (3,5,7,11,15) + attention fusion                   │
+│    • Output: learned time-feature map [B, C, T]                              │
+│                                                                              │
+│         │                                                                    │
+│         ▼                                                                    │
+│  Stage 2: Encoder (Hybrid 1D→2D Backbone)                                    │
+│    • Temporal backbone + spectral/2D refinement + pooling                    │
+│    • Output: embedding h ∈ ℝ^D                                               │
+│                                                                              │
+│         │                                                                    │
+│         ▼                                                                    │
+│  Stage 3: Self-Supervised Learning (Barlow Twins)                             │
+│    • Two correlated views → shared encoder → projector → loss                │
+│                                                                              │
+│         ▲                                                                    │
+│         │                                                                    │
+│  Stage 4: Augmentation Engine (used by Stage 3)                              │
+│    • Physics-consistent transforms to generate View-1 / View-2               │
+│                                                                              │
+│         │                                                                    │
+│         ▼                                                                    │
+│  Stage 5: Training Utilities                                                 │
+│    • Optimiser, schedulers, logging, checkpointing                           │
+│                                                                              │
+│         │                                                                    │
+│         ▼                                                                    │
+│  Stage 6: Evaluation                                                         │
+│    • Clustering / diagnostics / confusion analysis                           │
+│                                                                              │
+│         │                                                                    │
+│         ▼                                                                    │
+│  Stage 7: Deployment                                                         │
+│    • Export / inference engine (e.g., ONNX / local classifier)               │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
+
 ```
 
 ---
