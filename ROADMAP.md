@@ -1,368 +1,208 @@
-# SKANN-SSL PROJECT ROADMAP
-
+# PROJECT ROADMAP  
 ## Hybrid Selective Kernel Self-Supervised Acoustic Representation Learning System
 
-A complete, modern, scalable self-supervised acoustic representation learning system for underwater acoustics, suitable for sonar, vessel detection, machinery vibration, and environmental acoustics.
+---
+
+## 1. Initial Sample Creation (Stage −1)
+
+**Objective:**  
+Provide raw waveform inputs for the system before Stage 0 begins.  
+This stage is external to the main ML pipeline and is part of the Dataset Plan (non-pipeline).
+
+**Tasks:**  
+Generate synthetic vessel-noise waveforms using a Python-based generator.
+
+- Produce physics-inspired acoustic signatures including blade-rate tonals, multi-harmonics, broadband propulsion noise, cavitation bursts, and Doppler-induced warping.
+- Save the generated signals as `.wav` files at the standard sampling rate of 16 kHz.
+- Organise the synthetic dataset into labeled vessel-type folders.
+
+**Output:**  
+A set of initial waveform files (e.g., `.wav`) ready for ingestion by Stage 0 (Preprocessing).
+
+**Note:**  
+This stage does not replace real-world datasets. It exists to support early debugging, model bring-up, augmentation testing, and baseline evaluation before integrating NOAA, MBARI, JAMSTEC, or DCLDE datasets.
 
 ---
 
-## System Flowchart
+## 2. Stage 0 — Preprocessing & Data Standardisation
 
-```
-## System Flowchart
+**Objective:**  
+Ensure all raw signals are consistent, normalised, and ready for model ingestion.
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           SKANN-SSL Pipeline                                 │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  Stage −1: Synthetic Data Generation                                         │
-│    • Sea noise + ship noise synthesis, SNR mixing                            │
-│    • Output: waveform clips (Pa) + manifest                                  │
-│                                                                              │
-│         │                                                                    │
-│         ▼                                                                    │
-│  Stage 0: Preprocessing & Standardisation                                    │
-│    • DC removal, RMS normalisation, reshape → [B, 1, 16000]                  │
-│    • Train/val/test splits via manifest                                      │
-│                                                                              │
-│         │                                                                    │
-│         ▼                                                                    │
-│  Stage 1: Learned Filterbank (SKConv1D)                                      │
-│    • Multi-branch kernels (3,5,7,11,15) + attention fusion                   │
-│    • Output: learned time-feature map [B, C, T]                              │
-│                                                                              │
-│         │                                                                    │
-│         ▼                                                                    │
-│  Stage 2: Encoder (Hybrid 1D→2D Backbone)                                    │
-│    • Temporal backbone + spectral/2D refinement + pooling                    │
-│    • Output: embedding h ∈ ℝ^D                                               │
-│                                                                              │
-│         │                                                                    │
-│         ▼                                                                    │
-│  Stage 3: Self-Supervised Learning (Barlow Twins)                             │
-│    • Two correlated views → shared encoder → projector → loss                │
-│                                                                              │
-│         ▲                                                                    │
-│         │                                                                    │
-│  Stage 4: Augmentation Engine (used by Stage 3)                              │
-│    • Physics-consistent transforms to generate View-1 / View-2               │
-│                                                                              │
-│         │                                                                    │
-│         ▼                                                                    │
-│  Stage 5: Training Utilities                                                 │
-│    • Optimiser, schedulers, logging, checkpointing                           │
-│                                                                              │
-│         │                                                                    │
-│         ▼                                                                    │
-│  Stage 6: Evaluation                                                         │
-│    • Clustering / diagnostics / confusion analysis                           │
-│                                                                              │
-│         │                                                                    │
-│         ▼                                                                    │
-│  Stage 7: Deployment                                                         │
-│    • Export / inference engine (e.g., ONNX / local classifier)               │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+**Tasks:**
+- Resample audio to a fixed sampling rate.
+- Remove DC offset.
+- Apply amplitude normalisation.
+- Optional high-pass filter.
+- Silence trimming / energy-gated cropping.
+- Segment into fixed-length clips.
 
-```
+**Output:**  
+Tensor `[Batch, 1, T]`
 
 ---
 
-## Stage Overview
+## 3. Stage 1 — Learned Filterbank (Raw Waveform Front-End)
 
-| Stage | Name | Status | Description |
-|-------|------|--------|-------------|
-| -1 | Synthetic Data Generation | ✅ Complete | Physics-based waveform generator |
-| 0 | Preprocessing | ✅ Complete | DataLoader, normalization, splits |
-| 1 | Learned Filterbank | 🔄 Next | SKConv1D multi-branch frontend |
-| 2 | 2D Encoder | ⏳ Planned | SKConv2D hierarchical encoder |
-| 3 | SSL Training | ⏳ Planned | Barlow Twins self-supervised |
-| 4 | Augmentation | ⏳ Planned | Physics-consistent augmentations |
-| 5 | Training Loop | ⏳ Planned | Full training pipeline |
-| 6 | Evaluation | ⏳ Planned | Clustering, visualization |
-| 7 | Deployment | ⏳ Planned | ONNX export |
-
----
-
-## Project Structure
-
-```
-SKANN_SSL/
-├── README.md                     # Project overview
-├── ROADMAP.md                    # This file
-│
-├── data/
-│   └── prototype_dataset/
-│       ├── master_dataset_manifest.csv   # Authoritative source (26 cols)
-│       ├── waveforms/                    # Raw Pa waveforms
-│       └── tensors/                      # Preprocessed [1,1,16000]
-│
-├── stages/
-│   ├── stage_minus1/             # Synthetic data generator
-│   ├── stage0_preprocessing/     # DataLoader, splits, transforms
-│   ├── stage1_skconv1d/          # Learned 1D filterbank
-│   ├── stage2_encoder/           # 2D hierarchical encoder
-│   ├── stage3_ssl/               # Barlow Twins SSL
-│   ├── stage4_augmentation/      # Augmentation engine
-│   └── stage5_training/          # Training loop
-│
-├── shared/
-│   ├── config.py                 # Global constants
-│   └── utils.py                  # Common utilities
-│
-├── notebooks/
-├── checkpoints/
-└── outputs/
-```
-
----
-
-## Stage -1: Synthetic Data Generation ✅ COMPLETE
-
-**Objective:** Generate physics-based synthetic waveforms for initial training and validation.
-
-**What Was Built:**
-- Sea noise generator based on digitized Knudsen curves (4 sea states)
-- Ship noise generator with tonal, broadband, and cavitation components
-- Full-factorial dataset covering all design factor combinations
-- Physical units (Pascals) with proper SNR mixing
-
-**Dataset:**
-- 1,920 clips (4 sea states × 4 vessels × 3 blades × 2 generators × 4 cavitation × 5 reps)
-- 1 second duration, 16 kHz sample rate
-- 10 Hz - 8,000 Hz frequency band
-- 6 dB SNR (ship above sea noise)
-
-**Output:**
-- `data/prototype_dataset/master_dataset_manifest.csv` (26 columns)
-- `data/prototype_dataset/waveforms/` (raw Pa)
-- `data/prototype_dataset/tensors/` (preprocessed)
-
-**Location:** `stages/stage_minus1/`
-
----
-
-## Stage 0: Preprocessing & Data Standardization ✅ COMPLETE
-
-**Objective:** Ensure all raw signals are consistent, normalized, and ready for model ingestion.
-
-**What Was Built:**
-- `SKANNDataset` class using manifest as single source of truth
-- Stratified train/val/test splits (70/15/15) preserving class balance
-- Transform classes for augmentation (TimeShift, GaussianNoise, AmplitudeScale)
-- Integration testing suite
-
-**Preprocessing Applied:**
-- DC offset removal
-- RMS normalization
-- Reshape to `[B, 1, T]` format
-
-**Usage:**
-```python
-from stages.stage0_preprocessing import get_dataloaders
-
-train_loader, val_loader, test_loader = get_dataloaders(
-    manifest_path='data/prototype_dataset/master_dataset_manifest.csv',
-    batch_size=32
-)
-```
-
-**Output:** Tensor `[Batch, 1, 16000]`
-
-**Location:** `stages/stage0_preprocessing/`
-
----
-
-## Stage 1: Learned Filterbank (SKConv1D) — NEXT
-
-**Objective:** Replace STFT/mel spectrogram preprocessing with a learned multi-scale time-domain filterbank.
+**Objective:**  
+Replace STFT/mel spectrogram preprocessing with a learned multi-scale time-domain filterbank.
 
 **Design:**
-- Multi-branch SKConv1D with kernels (3, 5, 7, 11, 15)
-- Attention-weighted branch fusion
-- Each kernel captures different temporal scales:
+- Multi-branch SKConv1D with kernels (3, 5, 7, 11, 15).
+- Optional dilated kernels.
+- Optional initial Conv1D (kernel 512, stride 256).
 
-| Kernel | Duration | Captures |
-|--------|----------|----------|
-| 3 | 0.19 ms | Transients, clicks |
-| 5 | 0.31 ms | Sharp features |
-| 7 | 0.44 ms | Tonals |
-| 11 | 0.69 ms | Modulation |
-| 15 | 0.94 ms | Broadband patterns |
+**Output:**  
+`[B, F, T1]` learned time–feature map.
 
-**Input:** `[B, 1, 16000]` from Stage 0
-**Output:** `[B, 64, T]` learned time-feature map
-
-**Location:** `stages/stage1_skconv1d/`
+**Phenomena Captured:**  
+Transients, tonals, modulation, broadband noise.
 
 ---
 
-## Stage 2: Hierarchical 2D Acoustic Encoder
+## 4. Stage 2 — Hierarchical 2D Acoustic Encoder
 
-**Objective:** Convert learned time-feature map into high-level 2D embeddings.
+**Objective:**  
+Convert learned time–feature maps into high-level 2D embeddings.
 
 **Workflow:**
-1. Reshape `[B, 64, T]` → `[B, 1, 64, T]`
-2. Apply SKConv2D blocks with progressive downsampling
-3. Global pooling
-4. Linear projection to embedding h ∈ ℝᴰ
-
-**Input:** `[B, 64, T]` from Stage 1
-**Output:** `[B, D]` embedding vector
-
-**Location:** `stages/stage2_encoder/`
+- Reshape `[B, F, T1] → [B, 1, F, T1]`
+- Apply SKConv2D blocks
+- Global pooling
+- Linear projection to `h ∈ ℝᴰ`
 
 ---
 
-## Stage 3: Self-Supervised Representation Learning
+## 5. Stage 3 — Self-Supervised Representation Learning (SSL)
 
-**Objective:** Train encoder without labels using Barlow Twins.
+**Objective:**  
+Train the encoder without labels using self-supervised learning.
 
 **Components:**
-- Siamese encoder with shared weights
-- Projector head g(h)
-- Barlow Twins loss: invariance + decorrelation
-
-**Loss Function:**
-```
-L = λ × Σᵢ(1 - Cᵢᵢ)² + Σᵢ Σⱼ≠ᵢ Cᵢⱼ²
-    ├── Invariance: on-diagonal → 1
-    └── Redundancy reduction: off-diagonal → 0
-```
-
-**Alternatives:** SimCLR, VICReg
-
-**Location:** `stages/stage3_ssl/`
+- Siamese encoder with shared weights.
+- Projector head `g(h)`.
+- Barlow Twins loss (invariance + decorrelation).
+- Optional alternatives: SimCLR, VICReg.
 
 ---
 
-## Stage 4: Data Pipeline & Augmentation Engine
+## 6. Stage 4 — Data Pipeline & Augmentation Engine
 
-**Objective:** Generate physics-consistent positive pairs for SSL training.
+**Objective:**  
+Generate physics-consistent positive pairs.
 
 **Augmentations:**
-| Augmentation | Description | Physics Motivation |
-|--------------|-------------|-------------------|
-| Random crop | Extract sub-segment | Temporal invariance |
-| Time shift | Circular shift | Phase invariance |
-| Gain jitter | Amplitude scaling | Distance variations |
-| Gaussian noise | Additive noise | Ambient changes |
-| Band-pass filter | Frequency filtering | Propagation effects |
-| Time masking | Zero segments | Occlusion robustness |
+- Random crop
+- Time shift
+- Gain jitter
+- Gaussian noise
+- Band-pass / low-pass filters
+- Time masking
+- Optional frequency masking
 
-**Location:** `stages/stage4_augmentation/`
+> This is a **supporting, non-linear stage** that feeds Stage 3.
 
 ---
 
-## Stage 5: Training, Embedding Extraction & Clustering
+## 7. Stage 5 — Training, Embedding Extraction & Clustering
 
-**Training Loop:**
-```
-for epoch:
-    x1, x2 = augment(x), augment(x)  # Positive pair
-    z1, z2 = projector(encoder(x1)), projector(encoder(x2))
-    loss = barlow_twins_loss(z1, z2)
-    loss.backward()
-    optimizer.step()
-```
+**Training Loop:**  
+Augment → Encode → Project → Loss → Update
+
+**Post-training:**
+- Discard projector
+- Optional PCA / whitening
 
 **Clustering:**
-- Primary: HDBSCAN (density-based, no k required)
-- Alternative: DBSCAN
+- HDBSCAN (preferred)
+- DBSCAN (alternative)
 
-**Visualization:**
-- UMAP projection
-- t-SNE projection
-- Cluster centroids / averages
-
-**Location:** `stages/stage5_training/`
+**Visualisation:**  
+UMAP, t-SNE, cluster averages.
 
 ---
 
-## Stage 6: Evaluation & Extensions
+## 8. Stage 6 — Optional / Recommended Extensions
 
-**Tasks:**
+- Evaluation & analytics
 - Embedding variance diagnostics
 - Invariance robustness tests
-- Cluster purity metrics
-- Comparison with supervised baseline
+- Correlation heatmaps
 
 ---
 
-## Stage 7: Deployment & Export
+## 9. Stage 7 — Deployment & Export
 
-**Tasks:**
 - ONNX export for embedded inference
-- Optional quantization (INT8)
-- Deploy to ARM/DSP hardware
-- Real-time streaming inference
+- Optional quantisation
+- Deployment to ARM / DSP hardware
 
 ---
 
-## Dataset Plan
+## 10. Deliverables (Non-Pipeline)
 
-### Prototype Dataset (Current)
-Synthetic vessel noise generator producing physics-based waveforms for controlled validation of SKConv1D and SKConv2D architecture.
-
-### Future Real-World Datasets
-| Dataset | Description |
-|---------|-------------|
-| NOAA NCEI | Passive acoustic archives with vessel noise |
-| MBARI | Hydrophone recordings with vessel pass-bys |
-| JAMSTEC | Long-term underwater observatory recordings |
-| DCLDE | Marine mammal + vessel acoustic events |
-
----
-
-## Key Technical Decisions
-
-| Decision | Rationale |
-|----------|-----------|
-| 10 Hz minimum frequency | Avoids turbulence model extrapolation |
-| Learned filterbank | End-to-end optimization vs fixed STFT |
-| Selective Kernels | Adaptive receptive fields for multi-scale features |
-| Barlow Twins | No negative pairs needed, stable training |
-| 16 kHz sample rate | Captures cavitation (up to 8 kHz Nyquist) |
-| Manifest-based loading | Single source of truth for dataset |
-
----
-
-## Deliverables
-
-**Implementations:**
-- SKConv1D multi-branch filterbank
-- SKConv2D encoder blocks
-- HybridSKEncoder (full backbone)
-- Barlow Twins SSL wrapper
+- SKConv1D implementation
+- SKConv2D implementation
+- HybridSKEncoder
+- SSL wrapper
 - Augmentation engine
-
-**Utilities:**
-- Training pipeline with logging
-- Clustering utilities (HDBSCAN)
-- Embedding visualization
+- Training pipeline
+- Clustering utilities
 - ONNX export
-- Integration tests
+- Full TDD
 
 ---
 
-## References
+## 11. Dataset Plan (Non-Pipeline)
 
-- Li et al., "Selective Kernel Networks" (CVPR 2019)
-- Zbontar & LeCun, "Barlow Twins" (ICML 2021)
-- Urick, "Principles of Underwater Sound"
-- Ross, "Mechanics of Underwater Noise"
-- Knudsen et al., "Underwater Ambient Noise" (1948)
+For initial testing, the system will use a Synthetic Vessel Noise Generator implemented in Python.  
+This generator produces physics-inspired vessel acoustic signatures (blade-rate tonals, broadband noise, cavitation bursts, Doppler-shifted modulations), enabling controlled validation of the SKConv1D and SKConv2D architecture.
 
----
+For subsequent evaluation using real-world underwater acoustic signals, the following publicly accessible datasets will be used:
 
-## Version History
+- NOAA NCEI Passive Acoustic Archives – Real hydrophone recordings containing vessel noise.
+- MBARI Hydrophone Dataset – Includes vessel pass-bys, maritime traffic, and ambient underwater noise.
+- JAMSTEC Underwater Observatory Recordings – Long-term hydrophone deployments with merchant ship noise.
+- DCLDE Workshop Datasets – Include mixed marine mammal and vessel acoustic events suitable for SSL validation.
 
-| Version | Date | Description |
-|---------|------|-------------|
-| 0.1.0 | Dec 2025 | Stage -1 complete (synthetic generator) |
-| 0.2.0 | Dec 2025 | Stage 0 complete (DataLoader, manifest) |
-| 0.3.0 | Dec 2025 | Project restructure (stages/ layout) |
+These datasets provide diverse underwater vessel noise signatures required for unsupervised clustering, embedding evaluation, and robustness benchmarking.
 
 ---
 
-*Last updated: December 17, 2025*
+## 12. Flowchart Diagram
+
+(See **System Flowchart (Authoritative)**.)
+
+```mermaid
+flowchart TD
+    A["Raw Audio (x)"] --> B["SKConv1D Filterbank"]
+    B --> C["Learned Spectrogram"]
+    C --> D["SKConv2D Encoder"]
+    D --> E["Embedding h ∈ ℝᴰ"]
+
+    E --> F["Augmentation 1"]
+    E --> G["Augmentation 2"]
+
+    F --> H["Siamese Encoder f(x)"]
+    G --> H
+
+    H --> I["Projector Head g(h)"]
+    I --> J["Embeddings z₁, z₂"]
+    J --> K["Barlow Twins Loss"]
+
+    classDef box fill:#f2f7ff,stroke:#3366cc,stroke-width:2px,rx:12,ry:12;
+    classDef proc fill:#e8fff2,stroke:#33aa55,stroke-width:2px,rx:12,ry:12;
+    classDef loss fill:#fff2e6,stroke:#ff9933,stroke-width:2px,rx:12,ry:12;
+
+    class A,C,E,J box
+    class B,D,F,G,H,I proc
+    class K loss
+```
+
+---
+
+## 13. Summary & Conclusion (Non-Pipeline)
+
+A complete, modern, scalable self-supervised acoustic representation learning system.  
+Suitable for sonar, HAVS, machinery vibration, and environmental acoustics.  
+Industry-grade and implementation-ready.
