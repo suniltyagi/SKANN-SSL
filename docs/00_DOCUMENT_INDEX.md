@@ -161,6 +161,21 @@ Encoder architecture, SKConv1D/2D, SSL (Barlow Twins), embeddings, clustering.
 
 ---
 
+### SKANN-SSL — Neural Network Architecture & Self-Supervised Learning (Technical Reference Guide)
+
+**Files:**
+- `docs/SKANN_SSL_Neural_Network_Architecture_and_SSL_Technical_Reference_Guide.md`
+
+**Role:**
+Developer-facing reference guide bridging deep-learning fundamentals (kernels, stride, batch size, tensor shapes)
+with SKANN-SSL architectural decisions (Selective Kernel mechanisms) and SSL training logic (Barlow Twins).
+Also provides practical deployment guidance (FPGA vs GPU, ONNX/Jetson strategy).
+
+**Authority:**
+Supplementary reference. It supports implementation and explanation but does not override:
+Canonical Project Memory → Roadmap → Foundational Documents → Architecture spec (Document E) → Deployment.
+---
+
 ## Evaluation, Deployment & Deliverables
 
 ### SKANN-SSL — Full-Scale System Diagnostics, Deployment & Deliverables
@@ -219,13 +234,17 @@ They are retained **only for historical continuity**.
    - `docs/SKANN_SSL_Ambient_Noise_Synthesis_StageMinus1.md`
    - `docs/tex/SKANN_SSL_Ambient_Noise_Synthesis_StageMinus1.tex`
 
-8. System Architecture & SSL Pipeline
+8. System Architecture & Self-Supervised Learning Pipeline
    - `docs/SKANN_SSL_System_Architecture_and_SSL_Pipeline.md`
    - `docs/tex/SKANN_SSL_System_Architecture_and_SSL_Pipeline.tex`
 
-9. Diagnostics, Deployment & Deliverables
+9. Neural Network Architecture & SSL Technical Reference Guide
+   - `docs/SKANN_SSL_Neural_Network_Architecture_and_SSL_Technical_Reference_Guide.md`
+
+10. Full-Scale System Diagnostics, Deployment & Deliverables
    - `docs/SKANN_SSL_Full_Scale_System_Diagnostics_Deployment_Deliverables.md`
    - `docs/tex/SKANN_SSL_Full_Scale_System_Diagnostics_Deployment_Deliverables.tex`
+
 
 ---
 
