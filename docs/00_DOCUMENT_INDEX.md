@@ -1,146 +1,234 @@
 # SKANN-SSL — Master Document Index (Authoritative)
 
-This index defines the hierarchy, authority, and relationships between all documents in the SKANN-SSL project memory.
+This document is the **authoritative index and governance contract** for all documentation
+in the SKANN-SSL repository.
 
-## Non‑negotiable rule
-- **Do not map documents to development stages.** Stages (−1…7) are implementation constructs; documents are references that may be used at any stage.
+It defines:
+- Canonical document identities and filenames
+- The locked pipeline stage model and interpretation rules
+- Authority and conflict-resolution hierarchy
+- Explicit qualification of deprecated historical terminology
+- The correct ingestion order for Claude Project memory
 
-## Conflict resolution
-1. Canonical overview/roadmap documents override everything else for scope and terminology.
-2. Foundational theory/specifications override implementation notes.
-3. Explicit amendments override older versions (record amendments in the same section).
+This file is intended to be a **stable, long-term record**.
 
 ---
 
-### Canonical Stage Ordering (Project-Wide)
+## Non-Negotiable Rule
 
-Whenever development stages are referenced in this project, the canonical order is:
+**Documents must NOT be mapped one-to-one to pipeline stages.**
+
+Pipeline stages (−1…7) describe **processing order in code**.
+Documents are **reference specifications** that may inform multiple stages.
+
+---
+
+## Conflict Resolution Hierarchy
+
+If two documents appear to conflict:
+
+1. **Project Roadmap** governs scope, terminology, and system structure.
+2. **Foundational theory and specifications** override architecture and implementation.
+3. **Architecture documents** override diagnostics and deployment guidance.
+4. **Explicitly recorded amendments** override older text.
+
+Silent reinterpretation is not permitted.
+
+---
+
+## Canonical Pipeline Stage Model (LOCKED)
+
+The SKANN-SSL pipeline stages are fixed as:
 
 Stage −1 → Stage 0 → Stage 1 → Stage 2 → Stage 3 → Stage 4 → Stage 5 → Stage 6 → Stage 7
 
-Stage numbers describe processing sequence only and do not imply document ownership or scope.
+
+| Stage | Meaning |
+|------:|--------|
+| −1 | Synthetic data generation (engineered, code-backed) |
+| 0 | Preprocessing & standardisation |
+| 1 | SKConv1D learned filterbank |
+| 2 | Encoder backbone |
+| 3 | Self-supervised learning (Barlow Twins) |
+| 4 | Augmentation engine (supporting, non-linear) |
+| 5 | Training utilities |
+| 6 | Evaluation & diagnostics |
+| 7 | Deployment |
+
+Stages define **execution order only** and do not imply document ownership.
 
 ---
 
 ## Canonical Overview
 
-### SKANN-SSL — Project Roadmap & End-to-End System Overview
+### SKANN-SSL — Project Roadmap & System Overview
+
 **Files:**
-- docs/SKANN_SSL_Project_Roadmap.md
-- docs/tex/SKANN_SSL_Project_Roadmap.tex
-- docs/figures/diagram2.svg (flowchart source used in LaTeX)
+- `ROADMAP.md` *(primary, repository root)*
+- `docs/SKANN_SSL_Project_Roadmap.md`
+- `docs/tex/SKANN_SSL_Project_Roadmap.tex`
 
-**Role:** Top-level narrative, execution roadmap, and system overview for SKANN-SSL.
+**Role:**  
+Top-level system overview, stage ordering, pipeline vs non-pipeline separation,
+system flowchart, dataset plan, and deliverables.
 
-**Authority:** Canonical for scope, terminology, and high-level system decomposition. Does **not** override physics/DSP/synthesis/architecture/deployment specifications.
+**Authority:**  
+Canonical for terminology and structure.
+Does not override physics, DSP, synthesis, or architecture specifications.
 
 ---
 
-## Foundational Theory and Specifications
+## Foundational Theory
 
 ### SKANN-SSL — Underwater Acoustics Foundations
+
 **Files:**
-- docs/SKANN_SSL_Underwater_Acoustics_Foundations.md
-- docs/tex/SKANN_SSL_Underwater_Acoustics_Foundations.tex
+- `docs/SKANN_SSL_Underwater_Acoustics_Foundations.md`
+- `docs/tex/SKANN_SSL_Underwater_Acoustics_Foundations.tex`
 
-**Role:** Physical and mathematical foundations for interpreting ocean-borne sound and defining SKANN acoustic quantities.
-
-**Authority:** Canonical for pressure/RMS/SPL/PSD definitions, propagation (TL), and detectability conventions.
+**Role:**  
+Physical and mathematical foundations: SPL, PSD, propagation, detectability.
 
 ---
 
-## Ambient Noise and Environmental Models
+## Ambient Noise & Environmental Models
 
 ### SKANN-SSL — Ambient Noise Models (Knudsen, Wenz, Kießling)
+
 **Files:**
-- docs/SKANN_SSL_Ambient_Noise_Models_Knudsen_Wenz_Kiessling.md
-- docs/tex/SKANN_SSL_Ambient_Noise_Models_Knudsen_Wenz_Kiessling.tex
+- `docs/SKANN_SSL_Ambient_Noise_Models_Knudsen_Wenz_Kiessling.md`
+- `docs/tex/SKANN_SSL_Ambient_Noise_Models_Knudsen_Wenz_Kiessling.tex`
 
-**Role:** Ambient-noise modelling framework (conceptual + empirical + modern parametrisations) for ocean PSDs.
+**Role:**  
+Conceptual and empirical ambient-noise modelling framework.
 
-**Authority:** Canonical for ambient PSD shapes, model-selection constraints, and frequency-region interpretations.
-
-### SKANN-SSL — Parametric Sea-Noise Model from Digitised Knudsen Curves
-**Files:**
-- docs/SKANN_SSL_Parametric_Sea_Noise_Model_Knudsen.md
-- docs/tex/SKANN_SSL_Parametric_Sea_Noise_Model_Knudsen.tex
-
-**Role:** Analytic, continuous piecewise parametric sea-noise PSD derived from digitised Knudsen curves (SKANN simulation model).
-
-**Authority:** Canonical for the specific parametric equations/coefficients used for SKANN sea-noise simulation.
+**Qualification:**  
+This document intentionally does **not** include the full parametric derivation.
 
 ---
 
-## DSP, Sampling and Signal Processing
+### SKANN-SSL — Parametric Sea-Noise Model (Knudsen-Based)
 
-### SKANN-SSL — DSP & Sampling Standards (Stage 0 Preprocessing)
 **Files:**
-**Files:**
-- docs/SKANN_SSL_DSP_and_Sampling_Standards_Stage0.md
-- docs/tex/SKANN_SSL_DSP_and_Sampling_Standards_Stage0.tex
+- `docs/SKANN_SSL_Parametric_Sea_Noise_Model_Knudsen.md`
+- `docs/tex/SKANN_SSL_Parametric_Sea_Noise_Model_Knudsen.tex`
 
+**Role:**  
+Standalone analytic derivation of continuous, piecewise sea-noise spectra.
 
-**Role:** DSP and preprocessing standards (sampling, resampling, DC removal, windowing/overlap, PSD estimation, normalisation, tensor prep).
-
-**Authority:** Canonical for signal standardisation conventions used across SKANN workflows.
+**Explicit Clarification:**  
+Historically known as `ocean_noise2`.  
+This document is **not Document B** and **does not define a pipeline stage**.
 
 ---
 
-## Waveform Synthesis and Simulation
+## DSP, Sampling & Preprocessing
+
+### SKANN-SSL — DSP & Sampling Standards (Stage 0)
+
+**Files:**
+- `docs/SKANN_SSL_DSP_and_Sampling_Standards_Stage0.md`
+- `docs/tex/SKANN_SSL_DSP_and_Sampling_Standards_Stage0.tex`
+
+**Role:**  
+DSP conventions, sampling, Welch PSD, normalisation, tensor preparation.
+
+---
+
+## Waveform Synthesis & Simulation
 
 ### SKANN-SSL — Ambient Noise Synthesis (Stage −1)
+
 **Files:**
-**Files:**
-- docs/SKANN_SSL_Ambient_Noise_Synthesis_StageMinus1.md
-- docs/tex/SKANN_SSL_Ambient_Noise_Synthesis_StageMinus1.tex
+- `docs/SKANN_SSL_Ambient_Noise_Synthesis_StageMinus1.md`
+- `docs/tex/SKANN_SSL_Ambient_Noise_Synthesis_StageMinus1.tex`
 
-
-**Role:** Procedure for generating time-domain ambient-noise waveforms from PSD models (PSD → random phase → IFFT → RMS; OLA for long durations).
-
-**Authority:** Canonical for synthetic ambient-noise waveform generation used in SKANN simulations.
+**Role:**  
+Synthetic waveform generation from PSD models (IFFT, random phase, OLA).
 
 ---
 
-## Core System Architecture and Learning
+## Core Architecture & Learning
 
-### SKANN-SSL — System Architecture & Self-Supervised Learning Pipeline (Stages 0–7)
+### SKANN-SSL — System Architecture & Self-Supervised Learning Pipeline
+
 **Files:**
-- SKANN_SSL_System_Architecture_and_SSL_Pipeline.tex
-- SKANN_SSL_System_Architecture_and_SSL_Pipeline.md
+- `docs/SKANN_SSL_System_Architecture_and_SSL_Pipeline.md`
+- `docs/tex/SKANN_SSL_System_Architecture_and_SSL_Pipeline.tex`
 
-**Role:** End-to-end architecture specification (encoder, SSL wrapper, augmentation utilities, embedding extraction and clustering workflows).
-
-**Authority:** Canonical for model/training logic and component definitions.
+**Role:**  
+Encoder architecture, SKConv1D/2D, SSL (Barlow Twins), embeddings, clustering.
 
 ---
 
-## Operationalisation, Evaluation and Deployment
+## Evaluation, Deployment & Deliverables
 
-### SKANN-SSL — Full-Scale System: Diagnostics, Deployment & Deliverables
+### SKANN-SSL — Full-Scale System Diagnostics, Deployment & Deliverables
+
 **Files:**
-**Files:**
-- docs/SKANN_SSL_Full_Scale_System_Diagnostics_Deployment_Deliverables.md
-- docs/tex/SKANN_SSL_Full_Scale_System_Diagnostics_Deployment_Deliverables.tex
+- `docs/SKANN_SSL_Full_Scale_System_Diagnostics_Deployment_Deliverables.md`
+- `docs/tex/SKANN_SSL_Full_Scale_System_Diagnostics_Deployment_Deliverables.tex`
 
-
-**Role:** Diagnostics suite, dataset strategy, export/deployment workflow, and deliverables list for operationalising SKANN-SSL.
-
-**Authority:** Canonical for evaluation and operational readiness criteria; does not override foundational specifications.
+**Role:**  
+Diagnostics, robustness checks, ONNX export, deployment, system deliverables.
 
 ---
 
-## Optional canonical project memory (if used)
-- 00_CANONICAL_SKANN_SSL_PROJECT_MEMORY.md
+## Deprecated Historical Terminology (Quarantined)
+
+Earlier drafts used:
+- Conceptual labels **Document A–F**
+- Filenames such as `ocean_noise2_corrected.docx`
+
+These identifiers are **deprecated** and must not be used for reasoning,
+cross-referencing, or future edits.
+
+They are retained **only for historical continuity**.
 
 ---
 
-## Recommended upload order for Claude Project Memory
-1. SKANN_SSL_Project_Roadmap.md
-2. 00_DOCUMENT_INDEX.md (this file)
-3. SKANN_SSL_Underwater_Acoustics_Foundations.md and .tex
-4. SKANN_SSL_Ambient_Noise_Models_Knudsen_Wenz_Kiessling.md and .tex
-5. SKANN_SSL_Parametric_Sea_Noise_Model_Knudsen.md and .tex
-6. SKANN_SSL_DSP_and_Sampling_Standards_Stage0.md and .tex
-7. SKANN_SSL_Ambient_Noise_Synthesis_StageMinus1.md and .tex
-8. SKANN_SSL_System_Architecture_and_SSL_Pipeline.md and .tex
-9. SKANN_SSL_Full_Scale_System_Diagnostics_Deployment_Deliverables.md and .tex
+## Recommended Upload Order for Claude Project Memory
+
+**Rule:** Upload Markdown first (semantic authority), followed by LaTeX (rendering artefact).
+
+1. Project Roadmap
+   - `ROADMAP.md`
+   - `docs/SKANN_SSL_Project_Roadmap.md`
+   - `docs/tex/SKANN_SSL_Project_Roadmap.tex`
+
+2. Document Governance
+   - `docs/00_DOCUMENT_INDEX.md`
+
+3. Underwater Acoustics Foundations
+   - `docs/SKANN_SSL_Underwater_Acoustics_Foundations.md`
+   - `docs/tex/SKANN_SSL_Underwater_Acoustics_Foundations.tex`
+
+4. Ambient Noise Models
+   - `docs/SKANN_SSL_Ambient_Noise_Models_Knudsen_Wenz_Kiessling.md`
+   - `docs/tex/SKANN_SSL_Ambient_Noise_Models_Knudsen_Wenz_Kiessling.tex`
+
+5. Parametric Sea-Noise Model
+   - `docs/SKANN_SSL_Parametric_Sea_Noise_Model_Knudsen.md`
+   - `docs/tex/SKANN_SSL_Parametric_Sea_Noise_Model_Knudsen.tex`
+
+6. DSP & Sampling Standards (Stage 0)
+   - `docs/SKANN_SSL_DSP_and_Sampling_Standards_Stage0.md`
+   - `docs/tex/SKANN_SSL_DSP_and_Sampling_Standards_Stage0.tex`
+
+7. Ambient Noise Synthesis (Stage −1)
+   - `docs/SKANN_SSL_Ambient_Noise_Synthesis_StageMinus1.md`
+   - `docs/tex/SKANN_SSL_Ambient_Noise_Synthesis_StageMinus1.tex`
+
+8. System Architecture & SSL Pipeline
+   - `docs/SKANN_SSL_System_Architecture_and_SSL_Pipeline.md`
+   - `docs/tex/SKANN_SSL_System_Architecture_and_SSL_Pipeline.tex`
+
+9. Diagnostics, Deployment & Deliverables
+   - `docs/SKANN_SSL_Full_Scale_System_Diagnostics_Deployment_Deliverables.md`
+   - `docs/tex/SKANN_SSL_Full_Scale_System_Diagnostics_Deployment_Deliverables.tex`
+
+---
+
+**Status:**  
+This index is complete, authoritative, and intended to remain stable.
+All SKANN-SSL documentation must conform to it.
