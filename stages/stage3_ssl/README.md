@@ -13,6 +13,13 @@ This stage is part of the canonical pipeline:
 ### Stage interface artefact (consumed downstream)
 - `stages/stage3_ssl/artifacts/SKANN_SSL_Stage3_SSL_Encoder_Bundle.joblib`
 
+**Download (large file)**
+- Google Drive: `https://drive.google.com/file/d/1DD7VgyfMfdQcUgxS2nVnZnL6AdpobrmP/view?usp=sharing`
+- Place the downloaded file at:
+  - `stages/stage3_ssl/artifacts/SKANN_SSL_Stage3_SSL_Encoder_Bundle.joblib`
+
+> Note: The encoder bundle is ~150 MB and may be hosted off-repo (e.g., Google Drive / Releases / LFS) to keep the git history lightweight.
+
 This is the **canonical interface** used by:
 - **Stage 6** evaluation scripts (batch confusion matrix + interactive inspector)
 - **Stage 7** inference/deployment (planned)
@@ -119,6 +126,13 @@ The notebook:
 4. the exported `.joblib` is copied into this repo under the **canonical Stage-3 artefact name**:
    - `stages/stage3_ssl/artifacts/SKANN_SSL_Stage3_SSL_Encoder_Bundle.joblib`
 
+**Download (large file)**
+- Google Drive: `https://drive.google.com/file/d/1DD7VgyfMfdQcUgxS2nVnZnL6AdpobrmP/view?usp=sharing`
+- Place the downloaded file at:
+  - `stages/stage3_ssl/artifacts/SKANN_SSL_Stage3_SSL_Encoder_Bundle.joblib`
+
+> Note: The encoder bundle is ~150 MB and may be hosted off-repo (e.g., Google Drive / Releases / LFS) to keep the git history lightweight.
+
 For the full Kaggle → repo export details, see:
 - **`stage3_TRAIN_EXPORT_NOTES.md`**
 
@@ -203,6 +217,13 @@ See Stage 6 artefacts for the full evaluation outputs.
 ### Outputs
 - Canonical encoder bundle:
   - `stages/stage3_ssl/artifacts/SKANN_SSL_Stage3_SSL_Encoder_Bundle.joblib`
+
+**Download (large file)**
+- Google Drive: `https://drive.google.com/file/d/1DD7VgyfMfdQcUgxS2nVnZnL6AdpobrmP/view?usp=sharing`
+- Place the downloaded file at:
+  - `stages/stage3_ssl/artifacts/SKANN_SSL_Stage3_SSL_Encoder_Bundle.joblib`
+
+> Note: The encoder bundle is ~150 MB and may be hosted off-repo (e.g., Google Drive / Releases / LFS) to keep the git history lightweight.
 - Optional diagnostics and run artefacts under `artifacts/diagnostics/` and `runs/`
 
 ### Consumers

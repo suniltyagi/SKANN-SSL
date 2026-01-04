@@ -1,38 +1,39 @@
 # SKANN-SSL: Selective Kernel Audio Neural Networks with Self-Supervised Learning
 
-An underwater acoustic vessel detection and classification system using self-supervised learning. SKANN-SSL learns to identify vessel signatures directly from raw waveforms without requiring labeled training data.
+An underwater acoustic vessel detection and classification system using self-supervised learning. SKANN-SSL learns to identify vessel signatures directly from raw waveforms and uses downstream evaluation + centroid-based logic for inspection and inference.
 
 ---
 
 ## 🎯 Project Status
 
 | Stage | Name | Status | Description |
-|-------|------|--------|-------------|
+|------:|------|:------:|-------------|
 | -1 | Synthetic Data | ✅ Complete | Physics-based waveform generator |
-| 0 | Preprocessing | ✅ Complete | DataLoader, normalization, splits |
+| 0 | Preprocessing | ✅ Complete | DataLoader, normalisation, splits |
 | 1 | SKConv1D Filterbank | 🔄 Next | Multi-branch learned filterbank |
 | 2 | Encoder | ✅ Complete | HybridSKEncoder (34.4M params) |
-| 3 | SSL Training | ✅ Complete | Barlow Twins on Dual T4 GPUs |
+| 3 | SSL Training | ✅ Complete | Barlow Twins on Dual T4 GPUs (baseline) |
 | 4 | Augmentation | ⏳ Planned | Physics-consistent augmentations |
-| 5 | Training Loop | ✅ Complete | Integrated with Stage 3 |
-| 6 | Evaluation | ✅ Complete | Confusion matrix, clustering |
-| 7 | Deployment | ✅ Complete | Local inference engine |
+| 5 | Training Loop | ✅ Complete | Integrated with Stage 3 baseline |
+| 6 | Evaluation | ✅ Complete | Confusion matrix + operator inspection + centroid mapping |
+| 7 | Deployment | ✅ Prototype | Local inference engine (centroid/territory-assisted) |
 
 ---
 
-## 🏆 Key Results
+## 🏆 Key Results (Baseline)
 
 | Metric | Value |
-|--------|-------|
+|--------|------:|
 | **Model Parameters** | 34.4 Million |
 | **Embedding Dimension** | 128 |
-| **Silhouette Score** | 0.3997 |
+| **Silhouette Score (cosine)** | 0.3997 |
 | **Training Hardware** | NVIDIA Dual T4 GPUs (DDP) |
 | **Dataset Size** | 1,920 synthetic clips |
+| **Stage 6 Accuracy (first cut)** | ~78% |
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture (Encoder + Projector)
 
 ```
 Raw Waveform [B, 1, 16000]
@@ -65,7 +66,7 @@ Raw Waveform [B, 1, 16000]
 
 ## 📁 Project Structure
 
-```
+```text
 SKANN-SSL/
 ├── README.md
 ├── ROADMAP.md
@@ -74,7 +75,7 @@ SKANN-SSL/
 ├── data/
 │   └── prototype_dataset/
 │       ├── master_dataset_manifest.csv   # 26-column metadata
-│       ├── pairing_manifest.csv          # Hard positive pairs
+│       ├── pairing_manifest.csv          # Hard positive pairs (Stage 3)
 │       ├── waveforms/                    # Raw Pa waveforms
 │       └── tensors/                      # Preprocessed [1,1,16000]
 │
@@ -83,14 +84,13 @@ SKANN-SSL/
 │   ├── stage0_preprocessing/  # DataLoader, splits
 │   ├── stage1_skconv1d/       # [NEXT] Multi-branch filterbank
 │   ├── stage2_encoder/        # HybridSKEncoder architecture
-│   ├── stage3_ssl/            # Barlow Twins training
+│   ├── stage3_ssl/            # SSL pairing + training + export notes
 │   ├── stage4_augmentation/   # [PLANNED] Augmentation engine
 │   ├── stage5_training/       # Training utilities
-│   ├── stage6_evaluation/     # Confusion matrix, metrics
+│   ├── stage6_evaluation/     # Confusion matrix + operator inspection
 │   └── stage7_deployment/     # Local inference engine
 │
-├── docs/                      # Technical documentation 
-├── outputs/                   # Sample results and plots
+├── docs/                      # Technical documentation
 └── shared/                    # Common utilities
 ```
 
@@ -98,26 +98,30 @@ SKANN-SSL/
 
 ## 🚀 Quick Start
 
-### 1. Clone the Repository
+### 1) Clone the repository
 ```bash
 git clone https://github.com/suniltyagi/SKANN-SSL.git
 cd SKANN-SSL
 ```
 
-### 2. Load Data
+### 2) Load data (Stage 0)
 ```python
 from stages.stage0_preprocessing.dataloader import get_dataloaders
 
 train_loader, val_loader, test_loader = get_dataloaders(
-    manifest_path='data/prototype_dataset/master_dataset_manifest.csv',
+    manifest_path="data/prototype_dataset/master_dataset_manifest.csv",
     batch_size=32
 )
 ```
 
-### 3. Run Inference (requires production bundle)
+### 3) Stage 6 — batch evaluation (confusion matrix)
 ```bash
-cd stages/stage7_deployment
-python acoustic_sonar_classifier3.py
+python stages/stage6_evaluation/stage6_confusion_matrix.py
+```
+
+### 4) Stage 6 — interactive per-clip inspector (radar plot)
+```bash
+python stages/stage6_evaluation/stage6_acoustic_sonar_classifier.py
 ```
 
 ---
@@ -136,123 +140,102 @@ The synthetic dataset covers a full-factorial experimental design:
 | Repetitions | 5 per combination |
 | **Total Clips** | **1,920** |
 
-**Audio Specifications:**
+**Audio specifications**
 - Sample Rate: 16,000 Hz
 - Duration: 1.0 second
 - Frequency Band: 10 Hz – 8,000 Hz
-- SNR: 6 dB (ship above sea noise)
+- Nominal SNR: 6 dB (ship above sea noise)
 
 ---
 
-## 🔬 Training Pipeline
+## 🔬 Stage 3 — SSL Training (Baseline)
 
-### Hard Positive Mining
-The `pairing_manifest.py` creates anchor-partner pairs that are:
-- Same vessel class (positive)
-- Maximally distant in feature space (hard)
+### Hard positive mining (pairing manifest)
+`stages/stage3_ssl/pairing_manifest.py` generates anchor–partner pairs that are:
+- **Same vessel class** (positive)
+- **Maximally distant within class** (hard positives; avoids trivial pairing)
 
-This forces the network to learn class-invariant representations.
+Output:
+- `data/prototype_dataset/pairing_manifest.csv`
 
-### Barlow Twins SSL
-```python
-# Cross-correlation matrix
-C = z1_normalized.T @ z2_normalized / batch_size
-
-# Loss: diagonal → 1, off-diagonal → 0
-loss = on_diagonal_loss + λ * off_diagonal_loss
-```
-
-### Training Configuration
-- Epochs: 50
-- Batch Size: 4 per GPU (8 effective)
-- Optimizer: AdamW, lr=1e-4
-- Lambda (λ): 0.0051
-- Mixed Precision: ✅ Enabled
+### Training + export notes
+Baseline training was run on Kaggle (Dual T4 GPUs) and exported into a canonical bundle used by evaluation/deployment.  
+See:
+- `stages/stage3_ssl/README.md`
+- `stages/stage3_ssl/stage3_TRAIN_EXPORT_NOTES.md`
 
 ---
 
-## 📈 Evaluation
+## 📈 Stage 6 — Evaluation & Operator Inspection
 
-### Confusion Matrix Generator
-```bash
-cd stages/stage6_evaluation
-python confusion_matrix_generator.py
-```
+Stage 6 provides:
+- batch evaluation (confusion matrix + reports)
+- per-clip probability exports (CSV + Markdown)
+- interactive inspector for manual verification (radar plot + audit log)
+- vessel “territory/centroid” artefact for downstream inference support
 
-Outputs:
-- `confusion_matrix.png` — Visual heatmap
-- `confusion_report.txt` — Per-class metrics
-- `misclassified_clips.csv` — Error analysis
-
-### Centroid-Based Classification
-The inference engine compares new acoustic fingerprints against pre-computed class centroids using Euclidean distance.
+For interpretation of the confusion matrix and what the asymmetries imply, see:
+- `stages/stage6_evaluation/CONFUSION_MATRIX_ANALYSIS.md`
 
 ---
 
-## 📦 Production Assets (Not in Repo)
+## 📦 Assets and Storage Policy
 
-These files are too large for GitHub. Generate them using the training pipeline:
+Some assets are intentionally treated as **run artefacts** (large/volatile) while others are **project-facing**:
 
-| File | Size | Description |
-|------|------|-------------|
-| `SKANN_SSL_Production_Bundle.joblib` | ~150 MB | Model weights + metadata |
-| `vessel_territories.joblib` | ~1 KB | Class centroids (128-dim × 4) |
-| `BT_ckpt_epoch_*.pth` | ~140 MB | Training checkpoints |
+- **Tracked in git (small, stable):**
+  - Stage 6 vessel territories (`vessel_territories_stage6_*.joblib`)
+  - Confusion matrix + report (`confusion_matrix.png`, `confusion_report.txt`)
+  - Diagnostics plots (e.g., UMAP under `artifacts/diagnostics/`)
+  - Loss history CSV (posterity)
+
+- **Typically not tracked in git (large):**
+  - Training checkpoints (`BT_ckpt_epoch_*.pth`, `SKANN_SSL_GPU_Final.pth`)
+  - Large encoder bundles (`*.joblib` bundles ~150MB), unless using Git LFS/Releases
+
+
+- **Stage 3 trained encoder bundle (large, ~150 MB):**
+  - `SKANN_SSL_Stage3_SSL_Encoder_Bundle.joblib`
+  - Stored in Google Drive for convenient download (GitHub-friendly alternative to committing large binaries):
+    - `https://drive.google.com/file/d/1DD7VgyfMfdQcUgxS2nVnZnL6AdpobrmP/view?usp=sharing`
+
+
+The authoritative policy for Stage 3 and Stage 6 is documented in their stage READMEs.
 
 ---
 
 ## 📚 Documentation
 
-Authoritative technical documentation for the SKANN-SSL project is maintained in `/docs/`.
+Authoritative technical documentation is maintained in `/docs/`.
 
-| Document | Description |
-|----------|-------------|
-| Project Roadmap | System overview and execution roadmap |
-| Document Index | Document hierarchy and authority |
-| Underwater Acoustics Foundations | Acoustic theory and definitions |
-| Ambient Noise Models | Knudsen, Wenz, and Kießling noise models |
-| Parametric Sea-Noise Model | Analytic sea-noise PSD construction |
-| DSP & Sampling Standards | Signal preprocessing conventions |
-| Ambient Noise Synthesis | Time-domain waveform generation |
-| System Architecture & SSL Pipeline | Encoder and self-supervised learning design |
-| Diagnostics & Deployment | Evaluation and deployment strategy |
-
-See `docs/00_DOCUMENT_INDEX.md` for document scope and authority.
+Start here:
+- `docs/00_DOCUMENT_INDEX.md`
 
 ---
 
-## 🔮 Roadmap
+## 🔮 Roadmap (next steps)
 
-### Immediate (Stage 1)
-- [ ] Implement multi-branch SKConv1D filterbank
-- [ ] Kernels: [3, 5, 7, 11, 15] with attention fusion
-- [ ] Retrain and compare confusion metrics
+Immediate (Stage 1):
+- Implement multi-branch SKConv1D filterbank
+- Kernels: `[3, 5, 7, 11, 15]` with attention fusion
+- Retrain and compare Stage-6 evaluation metrics
 
-### Short-term
-- [ ] Address class confusion (especially large vessels)
-- [ ] Implement physics-consistent augmentations
-- [ ] Holdout validation on unseen data
+Short-term:
+- Reduce class confusions (especially large-vessel overlaps)
+- Add physics-consistent augmentations
+- Holdout validation on unseen conditions
 
-### Long-term
-- [ ] Test on real hydrophone data (ShipEar, NOAA)
-- [ ] ONNX export for embedded deployment
-- [ ] Real-time streaming inference
-
----
-
-## 📖 References
-
-- Li et al., "Selective Kernel Networks" (CVPR 2019)
-- Zbontar & LeCun, "Barlow Twins" (ICML 2021)
-- Urick, "Principles of Underwater Sound"
-- Ross, "Mechanics of Underwater Noise"
+Long-term:
+- Test on real hydrophone data (ShipEar, NOAA, etc.)
+- ONNX export for embedded deployment
+- Real-time streaming inference
 
 ---
 
-## 📄 License
+## 📄 Licence
 
-[Add your license here]
+[Add your licence here]
 
 ---
 
-*Last Updated: December 2025*
+*Last updated: January 2026*
