@@ -1,134 +1,126 @@
-# SKANN-SSL — Canonical Project Memory (Authoritative)
+# SKANN-SSL — Canonical Intent and Stable Assumptions (North Star)
 
-This document defines the **non-negotiable semantic invariants** of the SKANN-SSL project.
+This document captures **stable intent** and **default interpretations** for the SKANN-SSL project.
+It is designed to reduce “inference drift” in humans and assistants, while **not constraining legitimate evolution**.
 
-It exists to ensure that reasoning systems (including Claude Project memory)
-interpret all SKANN-SSL documentation **consistently, correctly, and without inference drift**.
+If a conflict arises, prefer:
+1. **A dated Decision Record (ADR)** (if present)
+2. Project Roadmap (`ROADMAP.md`)
+3. `/docs/*` theory/spec documents
+4. Stage READMEs and operational notes under `stages/`
 
-This document overrides all other documents in matters of **conceptual interpretation**.
-
----
-
-## 1. What SKANN-SSL Is
-
-SKANN-SSL (Selective Kernel Audio Neural Networks with Self-Supervised Learning) is:
-
-- A **physics-grounded acoustic representation learning system**
-- Designed for **underwater acoustics, sonar, HAVS, machinery vibration, and environmental sound**
-- Built around **learned filterbanks (SKConv)** and **self-supervised learning (Barlow Twins)**
-- Explicitly **not** a black-box end-to-end audio classifier
+> This doc is a *default lens*, not a constitution.
 
 ---
 
-## 2. What SKANN-SSL Is Not
+## 1. What SKANN-SSL Is (Intent)
 
-SKANN-SSL is **not**:
+SKANN-SSL is a **physics-grounded acoustic representation learning** system intended for:
+- underwater acoustics / sonar / HAVS
+- vessel and machinery acoustic signatures
+- interpretable embeddings suitable for analysis, clustering, and downstream decision logic
 
-- A supervised classification pipeline
-- A dataset-specific model
-- A fixed architecture tied to a single domain
-- A single-stage neural network
-- A document-to-stage mapping
+Key idea:
+- learned filterbank-style front-ends (e.g., SKConv) + self-supervised learning (e.g., Barlow Twins) to produce robust embeddings.
 
 ---
 
-## 3. Canonical Pipeline Stage Model (LOCKED)
+## 2. What SKANN-SSL Is Not (Guardrails)
 
-The following stage order is **fixed and must never be altered or reinterpreted**:
+By default, SKANN-SSL is not framed as:
+- “just” a supervised classification pipeline
+- a dataset-specific one-off model
+- a single-stage monolithic NN whose meaning is only “accuracy”
+
+These may be used tactically, but they should not redefine the project’s intent.
+
+---
+
+## 3. Canonical Stage Indexing Convention (Stable)
+
+Default stage order (numbering convention):
 
 Stage −1 → 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7
 
+Meaning:
+- stages are a **code organisation and processing order** convention
+- documents may span multiple stages
+- stage ownership of artefacts can evolve, but stage numbering is kept consistent for repo stability
 
-- Stages describe **processing order in code**
-- Stages do **not** imply document ownership
-- Documents may reference multiple stages
-- No document defines or redefines a stage
-
----
-
-## 4. Physics Before Learning (Invariant)
-
-All learning in SKANN-SSL is **physically grounded**:
-
-- SPL, PSD, and acoustic quantities follow physical definitions
-- Synthetic data is generated from **physically interpretable PSD models**
-- Learned representations must remain interpretable in frequency and energy terms
-
-Machine learning **does not override physics**.
+**Allowed exception:** the project may add stages (e.g., Stage 8) if scope expands; do so via an ADR.
 
 ---
 
-## 5. Synthetic Data Is a First-Class Citizen
+## 4. Physics Before Learning (Stable Principle)
 
-Stage −1 (synthetic data generation):
+Default discipline:
+- SPL/PSD quantities retain physical meaning and units
+- synthetic generation and evaluation should preserve interpretability in frequency/energy terms
 
-- Is **intentional**, not a placeholder
-- Exists to enforce controlled validation
-- Is required for architecture and SSL sanity checks
-- Is not optional or auxiliary
-
-Real-world data augments, but does not replace, this stage.
-
----
-
-## 6. Self-Supervised Learning Role (Invariant)
-
-Self-supervised learning in SKANN-SSL:
-
-- Is used for **representation learning**, not classification
-- Uses **Barlow Twins–style redundancy reduction**
-- Operates on **learned acoustic embeddings**, not raw labels
-- Produces embeddings intended for downstream clustering and analysis
+Machine learning is used to learn representations, but should not invalidate:
+- unit consistency
+- physically implausible transformations
+- evaluation logic tied to acoustic quantities
 
 ---
 
-## 7. Augmentation Is a Support Mechanism
+## 5. Synthetic Data as First-Class (Default)
 
-Augmentation (Stage 4):
+Stage −1 exists to enable:
+- controlled experiments
+- sanity checks for architecture and SSL
+- systematic variation (sea states, cavitation, etc.)
 
-- Is **non-linear and non-sequential**
-- Supports self-supervised learning objectives
-- Is not a standalone pipeline stage
-- Must not be treated as an independent data generator
-
----
-
-## 8. Canonical Authority Rules
-
-- Markdown documents define **semantic truth**
-- LaTeX documents are **rendering artefacts**
-- The Project Roadmap defines **scope and structure**
-- This Canonical Memory defines **meaning and interpretation**
-
-If a conflict arises:
-**Canonical Memory → Roadmap → Foundational Documents → Architecture → Deployment**
+Real data is a target for validation and generalisation, but does not remove the value of Stage −1.
 
 ---
 
-## 9. Deprecated Concepts (Explicitly Ignored)
+## 6. SSL Role (Stable Principle)
 
-The following are **deprecated and must not be used for reasoning**:
+Default interpretation:
+- SSL is primarily for **representation learning**, not direct classification
+- embeddings should support downstream analysis (clustering, territories, decision logic)
 
-- Document labels A–F
-- Filenames such as `ocean_noise2_corrected.docx`
-- Any inferred mapping between documents and pipeline stages
-
-These exist only as historical artefacts.
+A supervised head may be used, but it should be treated as a downstream consumer of embeddings.
 
 ---
 
-## 10. Stability Contract
+## 7. Augmentation (Living Policy)
 
-This document is expected to remain stable.
-
-Changes are permitted **only** if:
-- The fundamental architecture philosophy changes, or
-- The canonical stage model is formally revised (exceptional)
-
-All other evolution must occur **within** this framework.
+Augmentation supports SSL objectives.
+The exact augmentation set, constraints, and where it “lives” in the pipeline are **allowed to evolve**.
 
 ---
 
-**Status:**  
-This document is the **canonical semantic memory** for SKANN-SSL.
-All reasoning must conform to it.
+## 8. Operational Anchors (Where to find “how to run baseline”)
+
+Stage-local operational truth for the current baseline:
+- Stage 3: `stages/stage3_ssl/README.md`, `stage3_TRAIN_EXPORT_NOTES.md`
+- Stage 6: `stages/stage6_evaluation/README.md`, `CONFUSION_MATRIX_ANALYSIS.md`
+
+---
+
+## 9. Deprecated / Historical Concepts (Default Ignore)
+
+Unless explicitly needed for archaeology:
+- document labels A–F
+- old filenames and historical intermediate docs
+- inferred mapping of documents → stages
+
+---
+
+## 10. Change Control (Lightweight)
+
+This doc changes only when:
+- the project’s intent materially changes, or
+- a stable assumption becomes false
+
+Process:
+1. Create an ADR (short) describing the change and rationale
+2. Update this document and add a dated entry below
+
+### Change log
+### Change log
+- 2026-01-04: Converted to “North Star” doc (defaults + change control) instead of absolutist authority.
+- 2026-01-04: Updated operational anchors to reflect current Stage 3 + Stage 6 baseline, artefacts, and provenance.
+

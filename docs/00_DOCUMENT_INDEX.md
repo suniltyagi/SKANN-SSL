@@ -78,6 +78,96 @@ Does not override physics, DSP, synthesis, or architecture specifications.
 
 ---
 
+---
+
+## Stage-Level Operational Documentation (Repository-Local)
+
+This index intentionally avoids mapping documents one-to-one to pipeline stages. However, the repository also contains **stage-level READMEs and operational notes** that are essential for day-to-day use, reproducibility, and onboarding.
+
+These files:
+- are **implementation-facing** and may change more frequently than `/docs/*`
+- must **not override** the Roadmap or theory/spec documents
+- should be treated as “how to run and interpret the current baseline” references
+
+### Stage 3 — SSL Training (Operational)
+**Files (in `stages/stage3_ssl/`):**
+- `stages/stage3_ssl/README.md`
+- `stages/stage3_ssl/stage3_TRAIN_EXPORT_NOTES.md`
+- `stages/stage3_ssl/stage3_legacy_marking_note.md`
+
+**Purpose:**
+- baseline training provenance (Kaggle notebook → `.pth` → exported `.joblib`)
+- canonical Stage-3 artefact naming and placement
+- pairing manifest generation logic (`pairing_manifest.csv`)
+- diagnostic plots (e.g., UMAP projection of 128D embeddings)
+
+
+#### Stage 3 repo snapshot (key files and run outputs)
+
+**Key files (in `stages/stage3_ssl/`):**
+- `barlow_twins.py` — legacy/reference implementation (not required for the baseline)
+- `minimalgput4x2.ipynb` — Kaggle baseline training + export notebook
+- `pairing_manifest.py` — generates `data/prototype_dataset/pairing_manifest.csv`
+- `README.md` — Stage 3 operational baseline and stage boundary
+- `stage3_legacy_marking_note.md` — legacy/active file guidance
+- `stage3_TRAIN_EXPORT_NOTES.md` — train → save `.pth` → export `.joblib` notes
+- `train_script_kaggle.py` — preserved Kaggle training script (paths may be Kaggle-specific)
+- `train_script_repo.py` — repo-path training script (for future reproducibility)
+
+**Diagnostics (project-facing):**
+- `stages/stage3_ssl/artifacts/diagnostics/vessel_signature_umap_2d.png`
+
+**Run provenance (baseline):**
+- `stages/stage3_ssl/runs/2025-12-29_kaggle_baseline/loss_history.csv`
+- `stages/stage3_ssl/runs/2025-12-29_kaggle_baseline/SKANN_SSL_GPU_Final.pth`
+- `stages/stage3_ssl/runs/2025-12-29_kaggle_baseline/plots/vessel_signature_umap_2d.png`
+
+> Note: Run outputs are provenance artefacts; the canonical stage interface consumed downstream is the exported encoder bundle (`*.joblib`) described in the Stage-3 README.
+
+
+### Stage 6 — Evaluation & Diagnostics (Operational)
+**Files (in `stages/stage6_evaluation/`):**
+- `stages/stage6_evaluation/README.md`
+- `stages/stage6_evaluation/CONFUSION_MATRIX_ANALYSIS.md`
+
+**Purpose:**
+- batch evaluation outputs (confusion matrix + report)
+- interactive per-clip operator inspection (radar plot + audit log)
+- interpretation guidance for row-normalised confusion matrices
+- vessel territory/centroid artefact used to support inference
+
+
+#### Stage 6 artefacts snapshot (key generated outputs)
+
+**Folder:** `stages/stage6_evaluation/artifacts/`
+
+Batch evaluation outputs:
+- `confusion_matrix.png` — row-normalised confusion matrix visualisation
+- `confusion_report.txt` — textual evaluation summary (accuracy, per-class stats, top confusions)
+- `misclassified_clips.csv` — misclassified clip IDs + metadata (where available)
+- `per_clip_class_results_confidences.csv` — per-clip class probabilities (machine-readable)
+- `per_clip_class_results_confidences.md` — per-clip class probabilities (human-readable)
+
+Interactive inspection outputs:
+- `stage6_per_query_results_log.csv` — append-only log from the interactive inspector
+- `final_radar_XXXXXX.png` — radar plot for an inspected clip (one per query; examples include
+  `final_radar_001234.png`, `final_radar_001529.png`, `final_radar_001544.png`, `final_radar_001646.png`,
+  `final_radar_001834.png`, `final_radar_001919.png`)
+
+> Authoritative generation + interpretation:
+> - `stages/stage6_evaluation/README.md`
+> - `stages/stage6_evaluation/CONFUSION_MATRIX_ANALYSIS.md`
+
+
+### Figures Used by Documentation
+**Files:**
+- `docs/figures/flowchart.md`
+- `docs/figures/flowchart.tex`
+
+**Purpose:**
+- source-of-truth diagram definition(s) referenced by higher-level docs
+
+
 ## Foundational Theory
 
 ### SKANN-SSL — Underwater Acoustics Foundations
