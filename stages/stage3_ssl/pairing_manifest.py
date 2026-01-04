@@ -2,6 +2,16 @@ import pandas as pd
 import numpy as np
 from scipy.spatial.distance import cdist
 
+from pathlib import Path
+# Repo-relative paths (so script can be run from anywhere)
+REPO_ROOT = Path(__file__).resolve().parents[2]   # .../SKANN-SSL
+DATA_DIR = REPO_ROOT / "data" / "prototype_dataset"
+
+MANIFEST_PATH = DATA_DIR / "master_dataset_manifest.csv"
+OUTPUT_PATH = DATA_DIR / "pairing_manifest.csv"
+
+
+
 # Config
 K = 6
 hierarchy = ["n_blades", "sea_state", "cavitation_peak_freq", "shaft_rate", "generator_freq", 
@@ -9,7 +19,7 @@ hierarchy = ["n_blades", "sea_state", "cavitation_peak_freq", "shaft_rate", "gen
              "has_cavitation", "resonance_freq_2", "n_cavitation_bursts", "resonance_freq_3"]
 
 # Load Data
-df = pd.read_csv('master_dataset_manifest.csv')
+df = pd.read_csv(MANIFEST_PATH)
 df['has_cavitation'] = df['has_cavitation'].astype(float)
 
 # Math: n^1.5 Weights
@@ -41,5 +51,6 @@ for class_name, group in df_norm.groupby("vessel_class"):
             "vessel_class": class_name
         })
 
-pd.DataFrame(pairing_data).to_csv('pairing_manifest.csv', index=False)
+pd.DataFrame(pairing_data).to_csv(OUTPUT_PATH, index=False)
+print(f"Writing pairing manifest to: {OUTPUT_PATH}")
 print("pairing_manifest.csv generated successfully.")

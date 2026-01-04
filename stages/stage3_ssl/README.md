@@ -1,134 +1,221 @@
-# Stage 3: Self-Supervised Learning (Barlow Twins)
+# Stage 3 — Self-Supervised Learning (SSL) Encoder Training & Bundle Export
 
-## Status: ✅ COMPLETE
+Stage 3 trains the **SKANN-SSL encoder** using a **Barlow Twins–style** self-supervised objective and exports a **canonical encoder bundle** consumed by downstream stages.
 
-## Overview
+This stage is part of the canonical pipeline:
 
-Stage 3 implements the self-supervised learning pipeline using Barlow Twins. The model learns to produce similar embeddings for different acoustic recordings of the same vessel class, without requiring any labels.
+- **Stage −1 → 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7**
 
 ---
 
-## Barlow Twins Algorithm
+## What Stage 3 Produces
 
-### Core Idea
-Given two augmented views of the same signal, the embeddings should be:
-1. **Invariant**: Diagonal of cross-correlation → 1
-2. **Decorrelated**: Off-diagonal of cross-correlation → 0
+### Stage interface artefact (consumed downstream)
+- `stages/stage3_ssl/artifacts/SKANN_SSL_Stage3_SSL_Encoder_Bundle.joblib`
 
-### Loss Function
+This is the **canonical interface** used by:
+- **Stage 6** evaluation scripts (batch confusion matrix + interactive inspector)
+- **Stage 7** inference/deployment (planned)
 
-```python
-# Normalize embeddings
-z1_norm = (z1 - z1.mean(0)) / (z1.std(0) + 1e-7)
-z2_norm = (z2 - z2.mean(0)) / (z2.std(0) + 1e-7)
+### Project-facing diagnostics (optional, human inspection)
+- `stages/stage3_ssl/artifacts/diagnostics/vessel_signature_umap_2d.png`
 
-# Cross-correlation matrix [D × D]
-C = z1_norm.T @ z2_norm / batch_size
+### Training run by-products (provenance / reproducibility, not required downstream)
+Stored under:
+- `stages/stage3_ssl/runs/<run_id>/...`
 
-# Loss components
-on_diag = ((C.diag() - 1) ** 2).sum()      # Push diagonal → 1
-off_diag = (C ** 2).sum() - (C.diag() ** 2).sum()  # Push off-diagonal → 0
+Example (baseline run retained):
+- `stages/stage3_ssl/runs/2025-12-29_kaggle_baseline/loss_history.csv`
+- `stages/stage3_ssl/runs/2025-12-29_kaggle_baseline/SKANN_SSL_GPU_Final.pth`
+- `stages/stage3_ssl/runs/2025-12-29_kaggle_baseline/plots/vessel_signature_umap_2d.png`
 
-loss = on_diag + λ * off_diag
+> **Rule of thumb:**  
+> Keep `artifacts/` clean (stage interface + stable diagnostics).  
+> Keep training checkpoints/logs under `runs/` (often ignored by git).
+
+---
+
+
+---
+
+## UMAP Diagnostic (`vessel_signature_umap_2d.png`)
+
+This plot is a **visual diagnostic** of the representation learned by the Stage-3 encoder.
+
+### What the plot shows
+- Each dot is one **clip embedding** produced by the encoder (a 128‑dimensional vector).
+- The colourbar (“Vessel Class ID”) indicates the **true class** of that clip.
+- The geometry in 2D reflects **neighbourhood structure** in the original 128D space (points that are close in 2D tend to be neighbours in 128D).
+
+Qualitative indicators of a healthy SSL representation:
+- **No collapse** (points are not all mapped to a single blob).
+- **Meaningful separation** by class colour over substantial regions of the embedding.
+- **Structured within-class variation**, consistent with different operating conditions (speed, SNR, background, etc.) being represented without losing class identity.
+
+This qualitative behaviour is consistent with the recorded quantitative score in the baseline notebook:
+- **Silhouette score (cosine metric): 0.3997**
+
+### How 128D became 2D (UMAP in plain terms)
+Your encoder outputs an embedding for each clip:
+- \( z_i \in \mathbb{R}^{128} \)
+
+UMAP (Uniform Manifold Approximation and Projection) then:
+1. Builds a **k‑nearest-neighbour graph** in the 128D embedding space.
+2. Optimises a **2D layout** \( y_i \in \mathbb{R}^{2} \) that preserves those local neighbour relationships as much as possible.
+
+Important interpretation notes:
+- The **axes themselves are not physically meaningful**; only relative distances/clusters matter.
+- UMAP is **non-linear**; it preserves local neighbourhoods better than global geometry.
+
+### Parameters (for posterity)
+The exact UMAP appearance depends strongly on its hyperparameters. If you re-run UMAP in future, record these in the notebook/run notes:
+- `n_neighbors`: controls how local vs global the structure is (typical range 5–50)
+- `min_dist`: controls how tightly points are packed (typical range 0.0–0.5)
+- `metric`: distance used in 128D (commonly `cosine` or `euclidean` for embeddings)
+- `random_state`: set for reproducibility of the 2D layout
+
+If these were not recorded for the baseline image, treat this plot as a **qualitative snapshot** rather than a strictly reproducible figure.
+
+
+## Directory Structure (current repo)
+
+```text
+stage3_ssl/
+├── README.md
+├── __init__.py
+├── minimalgput4x2.ipynb
+├── train_script_kaggle.py
+├── train_script_repo.py
+├── pairing_manifest.py
+├── pairing_manifest_backupy.py
+├── barlow_twins.py
+├── stage3_TRAIN_EXPORT_NOTES.md
+├── stage3_legacy_marking_note.md
+├── artifacts/
+│   ├── SKANN_SSL_Stage3_SSL_Encoder_Bundle.joblib
+│   └── diagnostics/
+│       └── vessel_signature_umap_2d.png
+└── runs/
+    ├── 2025-12-29_kaggle_baseline/
+    │   ├── loss_history.csv
+    │   ├── SKANN_SSL_GPU_Final.pth
+    │   └── plots/
+    │       └── vessel_signature_umap_2d.png
+    └── _local_cpu_smoketest/   # optional local experiments (not part of baseline)
 ```
 
-Where λ = 0.0051 (tuned for 128-dim embeddings).
+---
+
+## Baseline Training Workflow (Kaggle)
+
+Baseline training was executed on Kaggle using:
+
+- `minimalgput4x2.ipynb`
+
+The notebook:
+1. writes a temporary training script via `%%writefile train_script.py` (Kaggle runtime file)
+2. trains and saves weights as `.pth` (checkpoints + final)
+3. exports a portable `.joblib` bundle containing weights + label metadata (e.g., `SKANN_SSL_Production_Bundle.joblib`)
+4. the exported `.joblib` is copied into this repo under the **canonical Stage-3 artefact name**:
+   - `stages/stage3_ssl/artifacts/SKANN_SSL_Stage3_SSL_Encoder_Bundle.joblib`
+
+For the full Kaggle → repo export details, see:
+- **`stage3_TRAIN_EXPORT_NOTES.md`**
 
 ---
 
-## Hard Positive Mining
+## Pairing Manifest (Hard-Positive Within-Class Sampling)
 
-### The Challenge
-Standard contrastive learning uses random augmentations. But for vessel classification, we need pairs that are:
-- Same vessel class (positive label)
-- Acoustically different (hard positive)
+### Script
+- `pairing_manifest.py`
 
-### Solution: Hierarchical Pairing
+### Output (dataset folder)
+- `data/prototype_dataset/pairing_manifest.csv`
 
-The `pairing_manifest.py` script creates anchor-partner pairs:
+### Intent (current baseline)
+Anchors are paired with **contrast partners from the same vessel class**. Partners are chosen as the **most dissimilar within-class examples** (“hard positives”) to avoid trivial solutions and encourage invariance across wide within-class variability.
 
-```python
-# For each anchor clip, find K=6 partners that are:
-# 1. Same vessel class
-# 2. MOST DISTANT in weighted feature space
+Output columns:
+- `anchor_clip_id`
+- `partner_clip_ids` (pipe-separated `|` list, default `K=6`)
+- `vessel_class`
 
-hierarchy = ["n_blades", "sea_state", "cavitation_peak_freq", ...]
-weights = [(12-i)**1.5 for i in range(12)]  # n^1.5 decay
+Notes:
+- The script is repo-path safe (runs from repo root; writes to `data/prototype_dataset/`).
+- A quick invariant check is that every partner clip in `partner_clip_ids` has the same `vessel_class` as the anchor.
 
-# Select K most distant (not nearest!)
-top_k_indices = np.argsort(dist_matrix[i])[::-1][:K]
+`pairing_manifest_backupy.py` is a retained backup version.
+
+---
+
+## Training Scripts: Kaggle vs Repo
+
+### `train_script_kaggle.py` (provenance copy)
+A preserved copy of the Kaggle-generated training script used for the baseline run. It may contain Kaggle-specific paths and assumptions.
+
+### `train_script_repo.py` (repo-path variant)
+A repo-relative variant intended for future reproducibility and local experimentation. It aligns input/output paths with the repo layout and can write outputs into a user-chosen `runs/` directory.
+
+> This README documents the baseline; local execution is optional and not required for Stage 6 evaluation.
+
+---
+
+## `barlow_twins.py` (Legacy / Reference)
+
+`barlow_twins.py` contains a generic Barlow Twins projector/loss implementation and is currently **not used** by the baseline Kaggle training path (which computes the loss inline in the training script).
+
+See:
+- `stage3_legacy_marking_note.md`
+
+---
+
+## Baseline Result (Stage 6)
+
+Using the current Stage-3 encoder bundle and the pairing strategy above, Stage 6 batch evaluation reported approximately:
+
+- **~78% accuracy** on the 1920-clip prototype dataset (first cut; no hyperparameter tuning)
+
+Additional representation-quality metric (from `minimalgput4x2.ipynb`):
+
+- **Silhouette score (cosine metric): 0.3997** — indicates meaningful class separation in the learned embedding space.
+
+See Stage 6 artefacts for the full evaluation outputs.
+
+---
+
+## Naming & Artefact Rules
+
+- No dates in **script** or **notebook** filenames.
+- Dates are allowed in **artefact** filenames when versioning is required.
+- Stage interface artefacts must live under: `stages/stage3_ssl/artifacts/`
+- Training run by-products belong under: `stages/stage3_ssl/runs/<run_id>/`
+
+---
+
+## Stage Boundary (Stage 3 → Stage 6/7)
+
+### Inputs
+- Dataset tensors: `data/prototype_dataset/tensors/tensor_XXXXXX.npy`
+- Dataset manifests:
+  - `data/prototype_dataset/master_dataset_manifest.csv`
+  - `data/prototype_dataset/pairing_manifest.csv`
+
+### Outputs
+- Canonical encoder bundle:
+  - `stages/stage3_ssl/artifacts/SKANN_SSL_Stage3_SSL_Encoder_Bundle.joblib`
+- Optional diagnostics and run artefacts under `artifacts/diagnostics/` and `runs/`
+
+### Consumers
+- **Stage 6** evaluation & operator inspection
+- **Stage 7** inference/deployment (planned)
+
+---
+
+## Housekeeping (recommended)
+
+If you do not want to commit large/volatile training outputs:
+
+```gitignore
+# Stage 3 — training runs (logs/checkpoints/weights)
+stages/stage3_ssl/runs/
 ```
-
-This forces the model to learn: "These sound different, but they're the same vessel class."
-
----
-
-## Training Configuration
-
-| Parameter | Value |
-|-----------|-------|
-| Epochs | 50 |
-| Batch per GPU | 4 |
-| World Size | 2 (Dual T4) |
-| Effective Batch | 8 |
-| Optimizer | AdamW |
-| Learning Rate | 1e-4 |
-| Lambda (λ) | 0.0051 |
-| Mixed Precision | ✅ Enabled |
-
----
-
-## Files
-
-| File | Description |
-|------|-------------|
-| `pairing_manifest.py` | Generates hard positive pairs |
-| `minimalgput4x2.ipynb` | Kaggle training notebook (Dual T4 DDP) |
-
----
-
-## Training on Kaggle
-
-### Prerequisites
-1. Upload `pairing_manifest.csv` to your dataset
-2. Ensure tensors are in `/kaggle/working/SKANN-SSL/data/prototype_dataset/tensors/`
-
-### Launch Training
-```python
-import torch.multiprocessing as mp
-from train_script import train_worker
-
-mp.spawn(
-    train_worker,
-    args=(world_size, manifest_path, epochs, batch_size),
-    nprocs=world_size,
-    join=True
-)
-```
-
----
-
-## Outputs
-
-| File | Description |
-|------|-------------|
-| `loss_history.txt` | Per-epoch loss values |
-| `BT_ckpt_epoch_*.pth` | Checkpoints every 5 epochs |
-| `SKANN_SSL_GPU_Final.pth` | Final model weights |
-| `SKANN_SSL_Production_Bundle.joblib` | Portable bundle with metadata |
-
----
-
-## Results
-
-| Metric | Value |
-|--------|-------|
-| Final Loss | Converged |
-| Silhouette Score | 0.3997 |
-| Training Time | ~40 minutes on Dual T4 |
-
----
-
-## References
-
-- Zbontar, J., Jing, L., Misra, I., LeCun, Y., & Deny, S. (2021). Barlow Twins: Self-Supervised Learning via Redundancy Reduction. ICML 2021.

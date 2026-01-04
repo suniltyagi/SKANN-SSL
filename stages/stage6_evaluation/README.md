@@ -1,118 +1,191 @@
-# Stage 6: Evaluation & Analysis
+# Stage 6 — Evaluation & Operator Inspection
 
-## Status: ✅ COMPLETE
+## Status
+✅ Stable (v1)
 
-## Overview
-
-Stage 6 provides tools to evaluate the trained model's performance, including confusion matrix generation, silhouette scoring, and centroid extraction for deployment.
+All evaluation and operator-inspection tools are operational and producing
+consistent, reproducible artefacts.
 
 ---
 
+## Purpose
+
+Stage 6 is the **evaluation and operator-inspection layer** of the SKANN-SSL
+pipeline.
+
+This stage:
+- evaluates the trained SSL encoder on the full dataset
+- exposes systematic class confusions and asymmetries
+- enables **interactive, clip-by-clip inspection** using radar plots
+- derives and stores **vessel territory / centroid mappings** for downstream inference
+
+🚫 **Stage 6 does not train models.**
+
+---
+
+## Inputs (Consumes)
+
+- **Stage 3 SSL encoder bundle**  
+  `stages/stage3_ssl/artifacts/SKANN_SSL_Stage3_SSL_Encoder_Bundle.joblib`
+
+- **Dataset tensors and manifest**  
+  `data/prototype_dataset/master_dataset_manifest.csv`
+
+---
+
+## Outputs (Produces)
+
+All outputs are written under `stages/stage6_evaluation/artifacts/`.
+
+### Evaluation Artefacts
+- `confusion_matrix.png`
+- `confusion_report.txt` (UTF-8)
+- `misclassified_clips.csv`
+- `per_clip_class_results_confidences.csv`
+- `per_clip_class_results_confidences.md`
+
+### Interactive Inspection Artefacts
+- `final_radar_XXXXXX.png` (one per inspected clip)
+- `stage6_per_query_results_log.csv` (append-only operator log)
+
+### Inference Support Artefact
+- `vessel_territories_stage6_YYYY-MM-DD.joblib`
+
+---
+
+## Directory Structure
+
+```text
+stage6_evaluation/
+├── README.md
+├── CONFUSION_MATRIX_ANALYSIS.md
+├── stage6_confusion_matrix.py
+├── stage6_acoustic_sonar_classifier.py
+├── stage6_vessel_territory_mapping_and_centroid_extraction.ipynb
+└── artifacts/
+    ├── confusion_matrix.png
+    ├── confusion_report.txt
+    ├── misclassified_clips.csv
+    ├── per_clip_class_results_confidences.csv
+    ├── per_clip_class_results_confidences.md
+    ├── stage6_per_query_results_log.csv
+    ├── final_radar_XXXXXX.png
+    └── vessel_territories_stage6_YYYY-MM-DD.joblib
+```
 ## Tools
 
-### 1. Confusion Matrix Generator
+### 1) Batch Evaluation — Confusion Matrix
 
-Runs classification on the entire dataset and produces detailed analysis.
+**Script:** `stage6_confusion_matrix.py`
 
+**What it does**
+- Runs full-dataset classification over the manifest.
+- Computes a row-normalised confusion matrix and overall accuracy.
+- Generates a text report with per-class recall/precision and top confusion pairs.
+- Exports misclassified clips (with available metadata).
+- Exports per-clip class probabilities (CSV + Markdown).
+
+**Run**
 ```bash
-python confusion_matrix_generator.py
+python stages/stage6_evaluation/stage6_confusion_matrix.py
 ```
 
-**Outputs:**
-- `confusion_matrix.png` — Visual heatmap (row-normalized percentages)
-- `confusion_report.txt` — Per-class precision, recall, confusion pairs
-- `misclassified_clips.csv` — Every error with metadata for analysis
+**Outputs (written to `artifacts/`)**
+- `confusion_matrix.png`
+- `confusion_report.txt`
+- `misclassified_clips.csv`
+- `per_clip_class_results_confidences.csv`
+- `per_clip_class_results_confidences.md`
 
-**Sample Report Section:**
-```
-CARGO_SHIP:
-  Recall (Sensitivity):  82.3%
-  Precision:             79.1%
-  Samples:               480
-  Confused with:
-    → tanker: 45 (9.4%)
-    → fishing_vessel: 12 (2.5%)
-```
+#### Per-clip confidence tables (CSV vs Markdown)
 
-### 2. Centroid Extraction (Kaggle Notebook)
+The batch script produces two equivalent per-clip confidence tables:
 
-Extracts the mean 128-dimensional embedding for each vessel class.
+- `per_clip_class_results_confidences.csv` — machine-readable table for analysis and scripting.
+- `per_clip_class_results_confidences.md` — human-readable Markdown rendering of the same table, useful for:
+  - quick manual inspection
+  - inclusion in reports
+  - peer/stakeholder review
 
-```python
-centroids = {
-    class_id: embeddings[labels == class_id].mean(axis=0)
-    for class_id in np.unique(labels)
-}
-joblib.dump(centroids, "vessel_territories.joblib")
-```
-
-### 3. Silhouette Scoring
-
-Measures clustering quality using cosine distance (aligned with Barlow Twins objective).
-
-```python
-from sklearn.metrics import silhouette_score
-score = silhouette_score(embeddings, labels, metric='cosine')
-# Result: 0.3997 (>0.2 indicates significant clustering)
-```
+Both files contain the same numerical content; only the presentation format differs.
 
 ---
 
-## Files
+### 2) Interactive Operator Inspector — Radar Plot
 
-| File | Description |
-|------|-------------|
-| `confusion_matrix_generator.py` | Full dataset evaluation tool |
-| `notebook54c27d5357.ipynb` | Kaggle notebook for centroid extraction |
+**Script:** `stage6_acoustic_sonar_classifier.py`
 
----
+**What it does**
+- Evaluates one clip at a time.
+- Displays:
+  - clip metadata (ID, true label, predicted label)
+  - per-class probability radar plot
+  - correctness status (correct / incorrect)
+- Saves the radar plot and appends a row to an audit log per query.
 
-## Metrics Explained
-
-### Silhouette Score
-- **Range**: -1 to +1
-- **Interpretation**:
-  - > 0.5: Strong clustering
-  - 0.25 - 0.5: Reasonable clustering
-  - < 0.25: Weak clustering
-- **Our Result**: 0.3997 ✅
-
-### Confusion Matrix
-- Rows = Actual class
-- Columns = Predicted class
-- Diagonal = Correct classifications
-- Off-diagonal = Errors
-
----
-
-## Usage
-
-### Local Analysis
+**Run**
 ```bash
-# Ensure these files are in the same directory:
-# - SKANN_SSL_Production_Bundle.joblib
-# - vessel_territories.joblib
-# - master_dataset_manifest.csv (or pairing_manifest.csv)
-# - tensors/ folder
-
-python confusion_matrix_generator.py
+python stages/stage6_evaluation/stage6_acoustic_sonar_classifier.py
 ```
 
-### Kaggle Centroid Extraction
-1. Add training output as Input dataset
-2. Run `notebook54c27d5357.ipynb`
-3. Download `vessel_territories.joblib`
+**Input**
+- numeric `clip_id` (validated against dataset range)
+
+**Outputs (written to `artifacts/`)**
+- `final_radar_XXXXXX.png` (one per inspected clip)
+- `stage6_per_query_results_log.csv` (append-only)
 
 ---
 
-## Known Issues & Limitations
+### 3) Vessel Territory & Centroid Extraction
 
-### Class Confusion
-Large steel-hulled vessels (Tanker, Cargo) show overlap due to:
-- Similar low-frequency engine harmonics
-- Overlapping cavitation frequencies (400-600 Hz)
-- Similar propeller RPM ranges
+**Notebook:** `stage6_vessel_territory_mapping_and_centroid_extraction.ipynb`
 
-### Mitigation (Planned)
-- Stage 1: Multi-branch SKConv1D for better multi-scale features
-- Refined pairing hierarchy emphasizing blade-rate differences
+**What it does**
+- Analyses SSL embedding space.
+- Computes class-wise centroids.
+- Maps embedding territories to vessel classes.
+
+**Output (written to `artifacts/`)**
+- `vessel_territories_stage6_YYYY-MM-DD.joblib`
+
+This artefact:
+- is deterministic and small
+- contains no neural-network weights
+- is consumed by Stage 7 inference
+
+---
+
+## Evaluation Interpretation
+
+A detailed explanation of:
+- the purpose of the confusion matrix
+- how to interpret row-normalised results
+- what asymmetric confusions imply physically and operationally
+
+is provided in:
+
+➡ `CONFUSION_MATRIX_ANALYSIS.md`
+
+---
+
+## Naming & Artefact Rules
+- No dates in script or notebook filenames.
+- Dates are allowed in artefact filenames.
+- All generated outputs must be written under `stages/stage6_evaluation/artifacts/`.
+- README files are the authoritative documentation for each stage.
+
+---
+
+## Stage Boundary (Stage 6 → Stage 7)
+
+**Inputs**
+- Stage 3 SSL encoder bundle
+- dataset tensors and manifest
+
+**Outputs**
+- evaluation artefacts (diagnostic)
+- vessel territory / centroid mapping (inference support)
+
+**Consumers**
+- Stage 7 (Inference & Deployment)

@@ -1,0 +1,73 @@
+============================================================
+SKANN-SSL CONFUSION ANALYSIS REPORT
+============================================================
+
+Overall Accuracy: 1501/1920 (78.2%)
+
+------------------------------------------------------------
+PER-CLASS PERFORMANCE
+------------------------------------------------------------
+
+CARGO_SHIP:
+  Recall (Sensitivity):  59.4%
+  Precision:             71.4%
+  Samples:               480
+  Confused with:
+    → fishing_vessel: 38 (7.9%)
+    → tanker: 157 (32.7%)
+
+FISHING_VESSEL:
+  Recall (Sensitivity):  89.8%
+  Precision:             80.6%
+  Samples:               480
+  Confused with:
+    → cargo_ship: 5 (1.0%)
+    → small_craft: 44 (9.2%)
+
+SMALL_CRAFT:
+  Recall (Sensitivity):  86.7%
+  Precision:             90.4%
+  Samples:               480
+  Confused with:
+    → fishing_vessel: 64 (13.3%)
+
+TANKER:
+  Recall (Sensitivity):  76.9%
+  Precision:             70.2%
+  Samples:               480
+  Confused with:
+    → cargo_ship: 109 (22.7%)
+    → fishing_vessel: 2 (0.4%)
+
+------------------------------------------------------------
+TOP CONFUSION PAIRS
+------------------------------------------------------------
+
+cargo_ship → tanker: 157 errors (32.7%)
+
+tanker → cargo_ship: 109 errors (22.7%)
+
+small_craft → fishing_vessel: 64 errors (13.3%)
+
+fishing_vessel → small_craft: 44 errors (9.2%)
+
+cargo_ship → fishing_vessel: 38 errors (7.9%)
+
+fishing_vessel → cargo_ship: 5 errors (1.0%)
+
+tanker → fishing_vessel: 2 errors (0.4%)
+
+------------------------------------------------------------
+MISCLASSIFICATION PATTERNS
+------------------------------------------------------------
+
+Errors by Sea State:
+  SS1: 118 errors
+  SS0: 105 errors
+  SS6: 102 errors
+  SS3: 94 errors
+
+Errors by Blade Count:
+  5 blades: 197 errors
+  4 blades: 137 errors
+  3 blades: 85 errors

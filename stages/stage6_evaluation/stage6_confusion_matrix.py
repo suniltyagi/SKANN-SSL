@@ -22,10 +22,18 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 from collections import defaultdict
+
+import sys, os
+
+ARTIFACTS_DIR = os.path.join(os.path.dirname(__file__), "artifacts")
+os.makedirs(ARTIFACTS_DIR, exist_ok=True)
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "stage2_encoder")))
 from train_script import HybridSKEncoder
 
 # Force script to look in its own directory
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+#STAGE_DIR = Path(__file__).resolve().parent
+#REPO_ROOT = STAGE_DIR.parents[1]   # .../SKANN-SSL
 
 
 class ConfusionAnalyzer:
@@ -38,11 +46,15 @@ class ConfusionAnalyzer:
         
         # Find manifest
         self.manifest = None
-        for name in ["master_dataset_manifest.csv", "pairing_manifest.csv"]:
+        for name in [
+            "data/prototype_dataset/master_dataset_manifest.csv",
+            "data/prototype_dataset/pairing_manifest.csv",
+        ]:
             if os.path.exists(name):
                 self.manifest = pd.read_csv(name)
                 print(f"📖 Loaded manifest: {name}")
                 break
+
         
         if self.manifest is None:
             raise FileNotFoundError("No manifest found!")
@@ -59,32 +71,40 @@ class ConfusionAnalyzer:
         self.label_to_idx = {label: i for i, label in enumerate(self.labels)}
         self.misclassified = []  # Store details of errors
 
-    def classify_single(self, clip_id):
-        """Classify a single clip and return (predicted_label, confidence)"""
-        clip_str = str(clip_id).zfill(6)
-        filename = f"tensor_{clip_str}.npy"
-        
-        # Search for file
-        if not os.path.exists(filename):
-            filename = os.path.join("tensors", filename)
-        if not os.path.exists(filename):
-            return None, None
-        
+    def classify_single(self, tensor_path):
+        """Classify a single clip tensor file and return (predicted_label, confidence)"""
+
+        # tensor_path in manifest is repo-root relative like:
+        # data/prototype_dataset/tensors/tensor_000000.npy
+        tensor_path = str(tensor_path)
+
+        # normalise separators (handles any / or \ mix)
+        tensor_path = tensor_path.replace("/", os.sep).replace("\\", os.sep)
+
+        # if it's relative, make it relative to repo root (you run from repo root)
+        if not os.path.isabs(tensor_path):
+            # current working dir is repo root in your run command
+            tensor_path = os.path.join(os.getcwd(), tensor_path)
+
+        if not os.path.exists(tensor_path):
+            return None, None, None
+
         # Inference
-        audio = np.load(filename)
+        audio = np.load(tensor_path)
         tensor = torch.from_numpy(audio).float().view(1, 1, -1).to(self.device)
-        
+
         with torch.no_grad():
             fingerprint = self.model(tensor).cpu().numpy().flatten()
-        
+
         # Distance to centroids
-        dists = [np.linalg.norm(fingerprint - self.territories[i]) 
-                 for i in range(self.n_classes)]
+        dists = [np.linalg.norm(fingerprint - self.territories[i])
+                for i in range(self.n_classes)]
         scores = 1.0 / (np.array(dists) + 0.8)
         probs = scores / np.sum(scores)
-        
+
         pred_idx = np.argmax(probs)
-        return self.labels[pred_idx], probs[pred_idx]
+        return self.labels[pred_idx], float(probs[pred_idx]), probs
+
 
     def run_full_analysis(self):
         """Run classification on entire dataset"""
@@ -95,15 +115,28 @@ class ConfusionAnalyzer:
         
         total = len(self.manifest)
         correct = 0
+        per_clip_rows = []
+
         
         for idx, row in self.manifest.iterrows():
             clip_id = int(row[id_col])
             actual_label = row['vessel_class']
             
-            pred_label, confidence = self.classify_single(clip_id)
+            pred_label, confidence, probs = self.classify_single(row["tensor_path"])
             
             if pred_label is None:
                 continue
+            
+            row_out = {
+                "clip_id": clip_id,
+                "actual": actual_label,
+                "predicted": pred_label,
+                "pred_confidence": float(confidence),
+            }
+            for k, lab in enumerate(self.labels):
+                row_out[f"p_{lab}"] = float(probs[k])
+            per_clip_rows.append(row_out)
+
             
             # Update confusion matrix
             actual_idx = self.label_to_idx[actual_label]
@@ -126,6 +159,14 @@ class ConfusionAnalyzer:
             # Progress
             if (idx + 1) % 200 == 0:
                 print(f"   Processed {idx + 1}/{total} clips...")
+        
+        df_pc = pd.DataFrame(per_clip_rows)
+        df_pc.to_csv(os.path.join(ARTIFACTS_DIR, "per_clip_class_results_confidences.csv"), index=False)
+        print(f"🧾 Saved: {os.path.join(ARTIFACTS_DIR, 'per_clip_class_results_confidences.csv')}")
+
+        df_pc.to_markdown(os.path.join(ARTIFACTS_DIR, "per_clip_class_results_confidences.md"), index=False)
+        print(f"🧾 Saved: {os.path.join(ARTIFACTS_DIR, 'per_clip_class_results_confidences.md')}")
+
         
         accuracy = correct / total * 100
         print(f"\n✅ Analysis complete: {correct}/{total} correct ({accuracy:.1f}%)")
@@ -160,7 +201,8 @@ class ConfusionAnalyzer:
 
     def generate_report(self, save_path="confusion_report.txt"):
         """Generate detailed text report"""
-        with open(save_path, 'w') as f:
+        with open(save_path, 'w', encoding='utf-8') as f:
+
             f.write("=" * 60 + "\n")
             f.write("SKANN-SSL CONFUSION ANALYSIS REPORT\n")
             f.write("=" * 60 + "\n\n")
@@ -257,17 +299,16 @@ def main():
     
     # Initialize
     analyzer = ConfusionAnalyzer(
-        bundle_path="SKANN_SSL_Production_Bundle.joblib",
-        territories_path="vessel_territories.joblib"
+        bundle_path="stages/stage3_ssl/artifacts/SKANN_SSL_Stage3_SSL_Encoder_Bundle.joblib",
+        territories_path="stages/stage6_evaluation/artifacts/vessel_territories_stage6_2025-12-29.joblib"
     )
     
     # Run analysis
     accuracy = analyzer.run_full_analysis()
     
-    # Generate outputs
-    analyzer.plot_confusion_matrix()
-    analyzer.generate_report()
-    analyzer.save_misclassified_csv()
+    analyzer.plot_confusion_matrix(save_path=os.path.join(ARTIFACTS_DIR, "confusion_matrix.png"))
+    analyzer.generate_report(save_path=os.path.join(ARTIFACTS_DIR, "confusion_report.txt"))
+    analyzer.save_misclassified_csv(save_path=os.path.join(ARTIFACTS_DIR, "misclassified_clips.csv"))
     
     # Print summary
     print("\n" + "=" * 60)
@@ -279,6 +320,9 @@ def main():
     print("  • confusion_matrix.png")
     print("  • confusion_report.txt")
     print("  • misclassified_clips.csv")
+    
+
+
 
 
 if __name__ == "__main__":

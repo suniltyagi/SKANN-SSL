@@ -1,120 +1,78 @@
-# =============================================================================
-# SKANN-SSL .gitignore
-# =============================================================================
+# =========================
+# SKANN-SSL repo .gitignore
+# =========================
+# Intent (custom):
+# - COMMIT: Stage-6 vessel_territories_stage6_*.joblib
+# - COMMIT: Stage-6 confusion_matrix.png + confusion_report.txt
+# - COMMIT: Stage-3 runs/*/loss_history.csv (posterity)
+# - COMMIT: notebooks (.ipynb)
+# - COMMIT: UMAP diagnostic under artifacts/diagnostics
+# - COMMIT: data/prototype_dataset/pairing_manifest.csv
+#
+# - IGNORE: heavy weights (*.pth/*.pt/*.ckpt), generic joblibs, and most generated artifacts/runs.
 
-# -----------------------------------------------------------------------------
-# Large Model Files (DO NOT COMMIT - too large for GitHub)
-# -----------------------------------------------------------------------------
-*.pth
-*.joblib
-*.pkl
-*.h5
-*.onnx
+# ---- OS / IDE ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
 
-# Specific production files
-SKANN_SSL_Production_Bundle.joblib
-vessel_territories.joblib
-BT_ckpt_epoch_*.pth
-SKANN_SSL_GPU_Final.pth
-
-
-# -----------------------------------------------------------------------------
-# Python
-# -----------------------------------------------------------------------------
+# ---- Python ----
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual environments
+.venv/
 venv/
 ENV/
 env/
-.venv/
 
-# -----------------------------------------------------------------------------
-# Jupyter Notebooks
-# -----------------------------------------------------------------------------
+# Jupyter runtime
 .ipynb_checkpoints/
-*.ipynb_checkpoints
 
-# -----------------------------------------------------------------------------
-# IDE / Editors
-# -----------------------------------------------------------------------------
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-.project
-.pydevproject
-.settings/
+# ---- Large model/weight formats (ignore) ----
+*.pth
+*.pt
+*.ckpt
+*.onnx
+*.h5
+*.tflite
+*.npy
 
-# -----------------------------------------------------------------------------
-# OS Generated
-# -----------------------------------------------------------------------------
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-desktop.ini
+# ---- Generic joblib (ignore) ----
+*.joblib
 
-# -----------------------------------------------------------------------------
-# Logs and Databases
-# -----------------------------------------------------------------------------
-*.log
-*.sql
-*.sqlite
-loss_history.txt
+# ---- Stage generated outputs (ignore by default) ----
+stages/**/runs/**
+stages/**/artifacts/**
 
-# -----------------------------------------------------------------------------
-# Output Files (Keep samples, ignore bulk)
-# -----------------------------------------------------------------------------
-# Keep sample radar plots in outputs/sample_radar_plots/
-# Ignore generated analysis files
-confusion_matrix.png
-confusion_report.txt
-misclassified_clips.csv
+# =============================================================================
+# Exceptions (ALLOW-LIST) — place AFTER ignore rules
+# =============================================================================
 
-# -----------------------------------------------------------------------------
-# Data Files (Tensors are large - keep manifest, ignore raw data)
-# -----------------------------------------------------------------------------
-# The tensors/ folder is tracked but individual .npy files are large
-# Consider using Git LFS for these if needed
-# data/prototype_dataset/waveforms/*.npy
-# data/prototype_dataset/tensors/*.npy
-data/prototype_dataset/master_dataset_manifest_COLAB_BACKUP.csv
+# Keep project-facing diagnostics
+!stages/**/artifacts/diagnostics/
+!stages/**/artifacts/diagnostics/**
 
-# -----------------------------------------------------------------------------
-# Temporary Files
-# -----------------------------------------------------------------------------
-*.tmp
-*.temp
-*.bak
-*.cache
+# Keep specific Stage-6 artifacts
+!stages/stage6_evaluation/artifacts/vessel_territories_stage6_*.joblib
+!stages/stage6_evaluation/artifacts/confusion_matrix.png
+!stages/stage6_evaluation/artifacts/confusion_report.txt
 
-# -----------------------------------------------------------------------------
-# Kaggle / Colab Specific
-# -----------------------------------------------------------------------------
-/kaggle/
-.kaggle/
-sample_data/
+# Keep loss history for posterity (even though runs/ is ignored)
+!stages/stage3_ssl/runs/
+!stages/stage3_ssl/runs/**/
+!stages/stage3_ssl/runs/**/loss_history.csv
+!stages/stage3_ssl/runs/**/loss_history.txt
+
+# Keep baseline pairing manifest in data/
+!data/prototype_dataset/pairing_manifest.csv
+
+# ---- Binaries (don’t try to diff) ----
+*.png
+*.jpg
+*.jpeg
+*.pdf
+
+# Local backups
+data/prototype_dataset/*BACKUP*.csv
+stages/stage3_ssl/*backup*.py
