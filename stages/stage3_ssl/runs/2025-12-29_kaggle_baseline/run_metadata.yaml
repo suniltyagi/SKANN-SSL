@@ -1,0 +1,48 @@
+# SKANN-SSL Stage 3 Baseline Run Metadata
+# =========================================
+# Run ID: 2025-12-29_kaggle_baseline
+# Platform: Kaggle (Dual NVIDIA T4 GPUs)
+# Notebook: minimalgput4x2.ipynb
+
+run_id: 2025-12-29_kaggle_baseline
+date: 2025-12-29
+platform: kaggle
+hardware: dual_t4_gpu
+
+# Training configuration
+training:
+  epochs: 50
+  batch_size: 4
+  gradient_accumulation: 8
+  effective_batch_size: 32
+  optimizer: AdamW
+  learning_rate: 1.0e-4
+
+# Model
+model:
+  architecture: HybridSKEncoder
+  latent_dim: 128
+  total_params: 34_400_000
+  inference_params: 1_800_000
+
+# SSL configuration
+ssl:
+  method: barlow_twins
+  lambda: 0.0051
+
+# UMAP visualization parameters
+umap:
+  n_neighbors: 15
+  min_dist: 0.1
+  metric: cosine
+  random_state: 42
+
+# Outputs (paths relative to stages/stage3_ssl/)
+outputs:
+  encoder_bundle: artifacts/SKANN_SSL_Stage3_SSL_Encoder_Bundle.joblib
+  umap_plot: artifacts/diagnostics/vessel_signature_umap_2d.png
+
+# Metrics
+metrics:
+  silhouette_score_cosine: 0.3997
+  stage6_accuracy: 0.782

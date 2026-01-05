@@ -63,6 +63,8 @@ stages/**/artifacts/**
 !stages/stage3_ssl/runs/**/
 !stages/stage3_ssl/runs/**/loss_history.csv
 !stages/stage3_ssl/runs/**/loss_history.txt
+!stages/stage3_ssl/runs/README.md
+!stages/stage3_ssl/runs/**/run_metadata.yaml
 
 # Keep baseline pairing manifest in data/
 !data/prototype_dataset/pairing_manifest.csv
