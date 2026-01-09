@@ -1,124 +1,90 @@
 """
-SKANN-SSL Stage 3: Barlow Twins Self-Supervised Learning
-=========================================================
-Implementation of Barlow Twins loss for learning invariant representations.
+SKANN-SSL Stage 3 — Barlow Twins helpers (NON-AUTHORITATIVE)
 
-Reference: Zbontar et al., "Barlow Twins: Self-Supervised Learning via 
-           Redundancy Reduction" (ICML 2021)
+IMPORTANT:
+- The canonical Barlow Twins loss used for training is implemented inline in:
+    stages/stage3_ssl/train_script.py
+  and SHOULD NOT be duplicated elsewhere.
+
+- This module exists only to provide helper utilities for diagnostics / analysis
+  (e.g., computing the cross-correlation matrix and its on/off-diagonal terms)
+  in a way that is numerically consistent with train_script.py.
+
+Rationale:
+- Avoids “two sources of truth” for the loss.
+- Keeps train_script.py unchanged (proven path).
 """
 
+from __future__ import annotations
+
 import torch
-import torch.nn as nn
 
 
 def off_diagonal(x: torch.Tensor) -> torch.Tensor:
     """
-    Extract off-diagonal elements from a square matrix.
-    
-    Args:
-        x: Square matrix [N, N]
-    Returns:
-        Flattened off-diagonal elements [N*(N-1)]
+    Return a flattened view of the off-diagonal elements of a square matrix.
     """
     n, m = x.shape
-    assert n == m, "Matrix must be square"
+    if n != m:
+        raise ValueError(f"off_diagonal expects a square matrix, got {n}x{m}")
+    # Standard trick: reshape then drop diagonal
     return x.flatten()[:-1].view(n - 1, n + 1)[:, 1:].flatten()
 
 
-class Projector(nn.Module):
+def normalize_batch(z: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
     """
-    MLP Projector head for Barlow Twins.
-    
-    Maps encoder embeddings to a space where the loss is computed.
-    Following the original paper: 3 layers with BN on hidden layers.
-    
-    Args:
-        in_dim: Input dimension (encoder output)
-        hidden: Hidden layer dimension
-        out_dim: Output projection dimension
+    Normalise features across the batch dimension:
+        (z - mean) / (std + eps)
+
+    Matches the numerical style used in stages/stage3_ssl/train_script.py.
     """
-    
-    def __init__(
-        self,
-        in_dim: int = 256,
-        hidden: int = 4096,
-        out_dim: int = 256
-    ):
-        super().__init__()
-        
-        self.net = nn.Sequential(
-            # Layer 1
-            nn.Linear(in_dim, hidden, bias=False),
-            nn.BatchNorm1d(hidden),
-            nn.ReLU(inplace=True),
-            # Layer 2
-            nn.Linear(hidden, hidden, bias=False),
-            nn.BatchNorm1d(hidden),
-            nn.ReLU(inplace=True),
-            # Layer 3 (output)
-            nn.Linear(hidden, out_dim, bias=True),
-        )
-    
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            x: Encoder embedding [B, in_dim]
-        Returns:
-            Projected embedding [B, out_dim]
-        """
-        return self.net(x)
+    return (z - z.mean(dim=0)) / (z.std(dim=0) + eps)
 
 
-class BarlowTwinsLoss(nn.Module):
+def cross_correlation(z1: torch.Tensor, z2: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
     """
-    Barlow Twins Loss Function.
-    
-    Encourages:
-    1. Invariance: Diagonal of cross-correlation → 1 (same info in both views)
-    2. Redundancy reduction: Off-diagonal → 0 (decorrelated features)
-    
-    Loss = Σ_i (1 - C_ii)² + λ * Σ_i Σ_{j≠i} C_ij²
-    
-    Args:
-        lambd: Weight for off-diagonal (redundancy) term
-        eps: Small constant for numerical stability in normalization
+    Compute cross-correlation matrix:
+        C = (z1_norm^T @ z2_norm) / B
+    where B is batch size.
     """
-    
-    def __init__(self, lambd: float = 5e-3, eps: float = 1e-12):
-        super().__init__()
-        self.lambd = lambd
-        self.eps = eps
-    
-    def forward(
-        self, 
-        z1: torch.Tensor, 
-        z2: torch.Tensor
-    ) -> torch.Tensor:
-        """
-        Compute Barlow Twins loss.
-        
-        Args:
-            z1: Projections from view 1 [B, D]
-            z2: Projections from view 2 [B, D]
-        Returns:
-            Scalar loss value
-        """
-        B, D = z1.shape
-        
-        # Normalize along batch dimension (zero mean, unit std)
-        z1_norm = (z1 - z1.mean(dim=0)) / (z1.std(dim=0) + self.eps)
-        z2_norm = (z2 - z2.mean(dim=0)) / (z2.std(dim=0) + self.eps)
-        
-        # Cross-correlation matrix [D, D]
-        c = (z1_norm.T @ z2_norm) / B
-        
-        # Invariance loss: diagonal elements should be 1
-        on_diag = torch.diagonal(c).add_(-1).pow_(2).sum()
-        
-        # Redundancy reduction: off-diagonal elements should be 0
-        off_diag = off_diagonal(c).pow_(2).sum()
-        
-        # Total loss
-        loss = on_diag + self.lambd * off_diag
-        
-        return loss
+    if z1.ndim != 2 or z2.ndim != 2:
+        raise ValueError(f"Expected 2D tensors (B,D). Got z1:{z1.shape}, z2:{z2.shape}")
+    if z1.shape != z2.shape:
+        raise ValueError(f"Shape mismatch: z1:{z1.shape} vs z2:{z2.shape}")
+
+    b = z1.size(0)
+    z1n = normalize_batch(z1, eps=eps)
+    z2n = normalize_batch(z2, eps=eps)
+    return (z1n.T @ z2n) / b
+
+
+def barlow_terms(
+    z1: torch.Tensor,
+    z2: torch.Tensor,
+    eps: float = 1e-6,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """
+    Return:
+      - C: cross-correlation matrix
+      - on_diag: Σ_i (1 - C_ii)^2
+      - off_diag: Σ_{i≠j} C_ij^2
+
+    This mirrors the decomposition implied by the canonical loss in train_script.py.
+    """
+    c = cross_correlation(z1, z2, eps=eps)
+    diag = torch.diagonal(c)
+    on_diag = (1.0 - diag).pow(2).sum()
+
+    # off-diagonal squared sum = total squared sum - diagonal squared sum
+    c2 = c.pow(2)
+    off_diag = c2.sum() - diag.pow(2).sum()
+
+    return c, on_diag, off_diag
+
+
+def barlow_loss_from_terms(on_diag: torch.Tensor, off_diag: torch.Tensor, lambda_offdiag: float) -> torch.Tensor:
+    """
+    Convenience helper to reconstruct the scalar loss from already-computed terms.
+    Not used by train_script.py (canonical training path remains inline).
+    """
+    return on_diag + (lambda_offdiag * off_diag)
