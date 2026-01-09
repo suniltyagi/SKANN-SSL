@@ -87,3 +87,6 @@ generate_metadata_post_hoc.py
 # Large artefacts (use Google Drive)
 stages/stage3_ssl/artifacts/*.joblib
 
+# Stage-3 trained model artefacts (kept locally, not versioned)
+stages/stage3_ssl/artifacts/*.joblib
+
