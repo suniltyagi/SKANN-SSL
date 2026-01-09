@@ -1,93 +1,149 @@
-# Stage 2: HybridSKEncoder Architecture
+# Stage 2 — HybridSKEncoder (V2.1.0)
 
-## Status: ✅ COMPLETE
+## Status: ✅ COMPLETE (Production)
 
-## Overview
+## Role in Pipeline
 
-Stage 2 implements the core encoder architecture — a 34.4 million parameter hybrid 1D-2D convolutional neural network that transforms raw audio waveforms into 128-dimensional acoustic fingerprints.
+Stage 2 defines the **HybridSKEncoder**, which transforms **Stage‑1 physics‑aware features**
+into compact **128‑dimensional acoustic embeddings**.
+
+**Stage position:**
+```
+Stage −1 → 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7
+```
+
+- **Stage 1**: SKConv1D / SKFilterbank (physics‑aware, multi‑scale)
+- **Stage 2**: Encoder backbone + projector (this stage)
+- **Stage 3**: SSL training (Barlow Twins)
 
 ---
 
-## Architecture
+## Overview
+
+The HybridSKEncoder is a **1D–2D hybrid convolutional architecture** with a deep projection head,
+designed for self‑supervised representation learning on underwater acoustic waveforms.
+
+- **Input**: raw waveform `[B, 1, 16000]`
+- **Output**: 128‑D embedding (“acoustic fingerprint”)
+- **Total parameters (training graph)**: ~34.4M  
+- **Encoder‑only parameters (inference)**: ~1.8M
+
+> **Important note**  
+> Although the *total* parameter count is similar to V1, V2.1.0 **reallocates representational capacity**
+> using a physics‑aware selective‑kernel frontend, leading to a large improvement in embedding quality
+> without increasing model size.
+
+---
+
+## Architecture (V2.1.0)
 
 ```
-Input: [B, 1, 16000] raw waveform
-           │
-           ▼
-┌──────────────────────────────────────┐
-│  BACKBONE 1D (Temporal Processing)   │
-│  Conv1d(1→128, k=31, s=4) → BN → ReLU│
-│  Conv1d(128→128, k=15, s=2) → BN → ReLU│
-│  Output: [B, 128, T']                │
-└──────────────────────────────────────┘
-           │ .unsqueeze(1)
-           ▼
-┌──────────────────────────────────────┐
-│  BACKBONE 2D (Spectral Processing)   │
-│  Conv2d(1→64, 3×3) → BN → ReLU       │
-│  Conv2d(64→128, s=(2,2)) → BN → ReLU │
-│  Conv2d(128→256, s=(2,1)) → BN → ReLU│
-│  Conv2d(256→512, 3×3) → BN → ReLU    │
-│  AdaptiveAvgPool2d(1) → Flatten      │
-│  Output: [B, 512]                    │
-└──────────────────────────────────────┘
-           │
-           ▼
-┌──────────────────────────────────────┐
-│  PROJECTOR (Deep MLP)                │
-│  Linear(512→4096) → LayerNorm → ReLU │
-│  Linear(4096→8192) → LayerNorm → ReLU│
-│  Linear(8192→128)                    │
-│  Output: [B, 128]                    │
-└──────────────────────────────────────┘
+Raw Waveform [B, 1, 16000]
+        │
+        ▼
+┌───────────────────────────────────────┐
+│  Stage‑1 SKFilterbank (V2.1.0)        │
+│  Physics‑aware, multi‑scale kernels   │
+│  Attention‑weighted fusion            │
+└───────────────────────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────────┐
+│  2D Convolutional Backbone            │
+│  Conv2d stack → SyncBatchNorm → ReLU  │
+│  AdaptiveAvgPool → Flatten            │
+│  Output: [B, 512]                     │
+└───────────────────────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────────┐
+│  Projector (Deep MLP)                 │
+│  512 → 4096 → 8192 → 128              │
+│  LayerNorm + ReLU                     │
+└───────────────────────────────────────┘
+        │
+        ▼
+   128‑dim Acoustic Fingerprint
 ```
+
+---
+
+## Parameter Distribution (V2.1.0)
+
+```
+Stage‑1 SKFilterbank (shared):   ~0.35M
+Stage‑2 2D Backbone:            ~1.50M
+Stage‑2 Projector (SSL only):   ~32.6M
+────────────────────────────────────────
+Total (training graph):         ~34.4M
+Encoder‑only (inference):       ~1.8M
+```
+
+> The projector is **used only during SSL training (Stage 3)** and is removed for
+> downstream evaluation and deployment.
+
+---
+
+## Parameter Distribution (V1 Baseline – for comparison)
+
+```
+Fixed Conv1D backbone:           ~0.30M
+2D Backbone:                    ~1.50M
+Projector (SSL):                ~32.6M
+────────────────────────────────────────
+Total (training graph):         ~34.4M
+Encoder‑only (inference):       ~1.8M
+```
+
+### Key Difference vs V2.1.0
+- **V1**: Fixed‑scale Conv1D kernels must explain all temporal phenomena  
+- **V2.1.0**: Parameters are *functionally specialised* via physics‑aware,
+  attention‑weighted kernel branches in Stage‑1
+
+This change improves **information efficiency**, not raw capacity.
 
 ---
 
 ## Key Design Decisions
 
 | Decision | Rationale |
-|----------|-----------|
-| LayerNorm in projector | Avoids DDP inplace errors from BatchNorm running buffers |
-| Large projector (4096→8192) | Barlow Twins benefits from high-dimensional projection space |
-| 128-dim output | Compact fingerprint balancing expressiveness and efficiency |
+|--------|-----------|
+| Physics‑aware SK frontend | Align kernel scales with vessel dynamics |
+| SK moved to Stage‑1 | Clean separation of feature extraction vs representation |
+| Large projector | Improves Barlow Twins decorrelation |
+| LayerNorm in projector | Stable DDP training |
+| 128‑D embedding | Compact yet discriminative |
 
 ---
 
 ## Files
 
-| File | Description |
-|------|-------------|
-| `train_script.py` | Complete HybridSKEncoder class + training worker |
+| File | Purpose |
+|----|--------|
+| `train_script.py` | HybridSKEncoder definition + training entry point |
+| `__init__.py` | Module export |
 
 ---
 
 ## Usage
 
 ```python
-from train_script import HybridSKEncoder
+from stages.stage2_encoder.train_script import HybridSKEncoder
 
 model = HybridSKEncoder(latent_dim=128)
-x = torch.randn(32, 1, 16000)  # [B, C, T]
-z = model(x)                    # [B, 128]
+x = torch.randn(32, 1, 16000)
+z = model(x)  # [32, 128]
 ```
 
 ---
 
-## Parameter Count
+## V2.1.0 Notes
 
-```
-Backbone 1D:    ~270K
-Backbone 2D:    ~1.5M
-Projector:      ~32.6M
-─────────────────────
-Total:          ~34.4M
-```
+- Fixed‑kernel Conv1D used in V1 is **deprecated**
+- All kernel‑scale logic now lives in **Stage‑1**
+- Stage‑2 focuses purely on **representation capacity**
+- Trained exclusively via **Stage‑3 SSL**
 
----
-
-## Notes
-
-- The 1D backbone uses fixed kernel sizes (31, 15)
-- Stage 1 will add multi-branch SKConv1D with attention-weighted fusion
-- This should improve multi-scale feature extraction
+See also:
+- `stages/stage1_skconv1d/README.md`
+- `stages/stage3_ssl/README.md`
