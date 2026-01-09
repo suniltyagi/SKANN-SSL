@@ -78,3 +78,12 @@ stages/**/artifacts/**
 # Local backups
 data/prototype_dataset/*BACKUP*.csv
 stages/stage3_ssl/*backup*.py
+
+# Local scratch files (do not commit)
+structure.txt
+structure_clean.txt
+generate_metadata_post_hoc.py
+
+# Large artefacts (use Google Drive)
+stages/stage3_ssl/artifacts/*.joblib
+
