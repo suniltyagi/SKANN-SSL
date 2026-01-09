@@ -1,62 +1,72 @@
 # SKANN-SSL: Selective Kernel Audio Neural Networks with Self-Supervised Learning
 
-An underwater acoustic vessel detection and classification system using self-supervised learning. SKANN-SSL learns to identify vessel signatures directly from raw waveforms and uses downstream evaluation + centroid-based logic for inspection and inference.
+An underwater acoustic vessel detection and classification system using **physics-aware self-supervised learning**.  
+SKANN-SSL learns vessel signatures directly from raw waveforms using selective-kernel filterbanks and produces robust embeddings for downstream evaluation and inference.
 
 ---
 
-## 🎯 Project Status
+## 🎯 Project Status (V2.1.0 – Production)
 
 | Stage | Name | Status | Description |
 |------:|------|:------:|-------------|
 | -1 | Synthetic Data | ✅ Complete | Physics-based waveform generator |
 | 0 | Preprocessing | ✅ Complete | DataLoader, normalisation, splits |
-| 1 | SKConv1D Filterbank | 🔄 Next | Multi-branch learned filterbank |
-| 2 | Encoder | ✅ Complete | HybridSKEncoder (34.4M params) |
-| 3 | SSL Training | ✅ Complete | Barlow Twins on Dual T4 GPUs (baseline) |
+| 1 | SKConv1D Filterbank | ✅ Implemented | Multi-branch learned filterbank |
+| 2 | Encoder | ✅ Complete | HybridSKEncoder with SK frontend |
+| 3 | SSL Training | ✅ Complete | Barlow Twins (V2.1.0 production) |
 | 4 | Augmentation | ⏳ Planned | Physics-consistent augmentations |
-| 5 | Training Loop | ✅ Complete | Integrated with Stage 3 baseline |
-| 6 | Evaluation | ✅ Complete | Confusion matrix + operator inspection + centroid mapping |
-| 7 | Deployment | ✅ Prototype | Local inference engine (centroid/territory-assisted) |
+| 5 | Training Loop | ✅ Complete | Integrated with Stage 3 |
+| 6 | Evaluation | ✅ Complete | Confusion matrix + territory mapping |
+| 7 | Deployment | ✅ Prototype | Local inference engine |
 
 ---
 
-## 🏆 Key Results (Baseline)
+## 🏆 Key Results (V2.1.0 – Physics-Aware)
 
 | Metric | Value |
 |--------|------:|
-| **Model Parameters** | 34.4 Million |
+| **Model Parameters** | 34.4M (training) / 1.8M (inference) |
 | **Embedding Dimension** | 128 |
-| **Silhouette Score (cosine)** | 0.3997 |
-| **Training Hardware** | NVIDIA Dual T4 GPUs (DDP) |
+| **Silhouette Score (cosine)** | **0.8299** |
+| **Training Hardware** | NVIDIA T4 ×2 (Kaggle, DDP) |
 | **Dataset Size** | 1,920 synthetic clips |
-| **Stage 6 Accuracy (first cut)** | ~78% |
+| **SK Kernels** | (31, 63, 127, 255, 511, 1023) |
+| **Frequency Coverage** | 15 Hz – 500+ Hz |
+
+### Improvement over V1 Baseline
+
+| Metric | V1 Baseline | V2.1.0 | Change |
+|--------|-------------|--------|--------|
+| Silhouette Score | 0.3997 | **0.8299** | **+107.6%** |
+| Cargo↔Tanker Confusion | 32.7% | ~0% | Resolved |
+| Low-Frequency Coverage | ❌ Limited | ✅ Full | Fixed |
 
 ---
 
-## 🏗️ Architecture (Encoder + Projector)
+## 🏗️ Architecture (V2.1.0)
 
 ```
 Raw Waveform [B, 1, 16000]
         │
         ▼
-┌───────────────────────────────────┐
-│  BACKBONE 1D (Temporal)           │
-│  Conv1d(1→128, k=31, s=4)         │
-│  Conv1d(128→128, k=15, s=2)       │
-└───────────────────────────────────┘
+┌───────────────────────────────────────┐
+│  SKFilterbank (Underwater Kernels)    │
+│  Kernels: [31, 63, 127, 255, 511, 1023]│
+│  Attention-weighted multi-scale fusion│
+└───────────────────────────────────────┘
         │
         ▼
-┌───────────────────────────────────┐
-│  BACKBONE 2D (Spectral)           │
-│  Conv2d stack → AdaptivePool      │
-│  Output: 512-dim                  │
-└───────────────────────────────────┘
+┌───────────────────────────────────────┐
+│  Channel Bridge + 2D Backbone         │
+│  Conv layers with SyncBatchNorm       │
+│  Output: 512-dim                       │
+└───────────────────────────────────────┘
         │
         ▼
-┌───────────────────────────────────┐
-│  PROJECTOR (Deep MLP)             │
-│  512 → 4096 → 8192 → 128          │
-└───────────────────────────────────┘
+┌───────────────────────────────────────┐
+│  PROJECTOR (Deep MLP)                  │
+│  512 → 4096 → 8192 → 128              │
+└───────────────────────────────────────┘
         │
         ▼
    128-dim Acoustic Fingerprint
@@ -70,172 +80,103 @@ Raw Waveform [B, 1, 16000]
 SKANN-SSL/
 ├── README.md
 ├── ROADMAP.md
-├── .gitignore
+├── CHANGELOG.md
+│
+├── archive/
+│   └── v1_baseline_dec2025/     # Archived V1 baseline
 │
 ├── data/
 │   └── prototype_dataset/
-│       ├── master_dataset_manifest.csv   # 26-column metadata
-│       ├── pairing_manifest.csv          # Hard positive pairs (Stage 3)
-│       ├── waveforms/                    # Raw Pa waveforms
-│       └── tensors/                      # Preprocessed [1,1,16000]
 │
 ├── stages/
-│   ├── stage_minus1/          # Synthetic data generator
-│   ├── stage0_preprocessing/  # DataLoader, splits
-│   ├── stage1_skconv1d/       # [NEXT] Multi-branch filterbank
-│   ├── stage2_encoder/        # HybridSKEncoder architecture
-│   ├── stage3_ssl/            # SSL pairing + training + export notes
-│   ├── stage4_augmentation/   # [PLANNED] Augmentation engine
-│   ├── stage5_training/       # Training utilities
-│   ├── stage6_evaluation/     # Confusion matrix + operator inspection
-│   └── stage7_deployment/     # Local inference engine
+│   ├── stage_minus1/
+│   ├── stage0_preprocessing/
+│   ├── stage1_skconv1d/
+│   ├── stage2_encoder/
+│   ├── stage3_ssl/
+│   ├── stage4_augmentation/
+│   ├── stage5_training/
+│   ├── stage6_evaluation/
+│   └── stage7_deployment/
 │
-├── docs/                      # Technical documentation
-└── shared/                    # Common utilities
+├── docs/
+└── shared/
 ```
 
 ---
 
 ## 🚀 Quick Start
 
-### 1) Clone the repository
-```bash
-git clone https://github.com/suniltyagi/SKANN-SSL.git
-cd SKANN-SSL
-```
-
-### 2) Load data (Stage 0)
-```python
-from stages.stage0_preprocessing.dataloader import get_dataloaders
-
-train_loader, val_loader, test_loader = get_dataloaders(
-    manifest_path="data/prototype_dataset/master_dataset_manifest.csv",
-    batch_size=32
-)
-```
-
-### 3) Stage 6 — batch evaluation (confusion matrix)
+### Stage 6 – Evaluation
 ```bash
 python stages/stage6_evaluation/stage6_confusion_matrix.py
 ```
 
-### 4) Stage 6 — interactive per-clip inspector (radar plot)
 ```bash
 python stages/stage6_evaluation/stage6_acoustic_sonar_classifier.py
 ```
 
 ---
 
-## 📊 Dataset
+## 📦 Historical Versions
 
-The synthetic dataset covers a full-factorial experimental design:
+The original V1 baseline (December 2025) is preserved for reproducibility:
 
-| Factor | Values |
-|--------|--------|
-| Sea States | SS0, SS1, SS3, SS6 |
-| Vessel Classes | small_craft, fishing_vessel, cargo_ship, tanker |
-| Blade Counts | 3, 4, 5 |
-| Generator Freq | 50 Hz, 60 Hz |
-| Cavitation Levels | 0, 1, 2, 3 |
-| Repetitions | 5 per combination |
-| **Total Clips** | **1,920** |
+- Location: `archive/v1_baseline_dec2025/`
+- Silhouette (V1): 0.3997
+- Architecture: Fixed Conv1D (no SK frontend)
 
-**Audio specifications**
-- Sample Rate: 16,000 Hz
-- Duration: 1.0 second
-- Frequency Band: 10 Hz – 8,000 Hz
-- Nominal SNR: 6 dB (ship above sea noise)
+See the archive README for reproduction details.
 
 ---
 
-## 🔬 Stage 3 — SSL Training (Baseline)
+## 🔮 Roadmap (Excerpt)
 
-### Hard positive mining (pairing manifest)
-`stages/stage3_ssl/pairing_manifest.py` generates anchor–partner pairs that are:
-- **Same vessel class** (positive)
-- **Maximally distant within class** (hard positives; avoids trivial pairing)
+### Completed
+- V2.1.0 Physics-aware SK kernels
+- Kaggle DDP training
+- Territory-based evaluation
 
-Output:
-- `data/prototype_dataset/pairing_manifest.csv`
-
-### Training + export notes
-Baseline training was run on Kaggle (Dual T4 GPUs) and exported into a canonical bundle used by evaluation/deployment.  
-See:
-- `stages/stage3_ssl/README.md`
-- `stages/stage3_ssl/stage3_TRAIN_EXPORT_NOTES.md`
-
----
-
-## 📈 Stage 6 — Evaluation & Operator Inspection
-
-Stage 6 provides:
-- batch evaluation (confusion matrix + reports)
-- per-clip probability exports (CSV + Markdown)
-- interactive inspector for manual verification (radar plot + audit log)
-- vessel “territory/centroid” artefact for downstream inference support
-
-For interpretation of the confusion matrix and what the asymmetries imply, see:
-- `stages/stage6_evaluation/CONFUSION_MATRIX_ANALYSIS.md`
-
----
-
-## 📦 Assets and Storage Policy
-
-Some assets are intentionally treated as **run artefacts** (large/volatile) while others are **project-facing**:
-
-- **Tracked in git (small, stable):**
-  - Stage 6 vessel territories (`vessel_territories_stage6_*.joblib`)
-  - Confusion matrix + report (`confusion_matrix.png`, `confusion_report.txt`)
-  - Diagnostics plots (e.g., UMAP under `artifacts/diagnostics/`)
-  - Loss history CSV (posterity)
-
-- **Typically not tracked in git (large):**
-  - Training checkpoints (`BT_ckpt_epoch_*.pth`, `SKANN_SSL_GPU_Final.pth`)
-  - Large encoder bundles (`*.joblib` bundles ~150MB), unless using Git LFS/Releases
-
-
-- **Stage 3 trained encoder bundle (large, ~150 MB):**
-  - `SKANN_SSL_Stage3_SSL_Encoder_Bundle.joblib`
-  - Stored in Google Drive for convenient download (GitHub-friendly alternative to committing large binaries):
-    - `https://drive.google.com/file/d/1DD7VgyfMfdQcUgxS2nVnZnL6AdpobrmP/view?usp=sharing`
-
-
-The authoritative policy for Stage 3 and Stage 6 is documented in their stage READMEs.
-
----
-
-## 📚 Documentation
-
-Authoritative technical documentation is maintained in `/docs/`.
-
-Start here:
-- `docs/00_DOCUMENT_INDEX.md`
-
----
-
-## 🔮 Roadmap (next steps)
-
-Immediate (Stage 1):
-- Implement multi-branch SKConv1D filterbank
-- Kernels: `[3, 5, 7, 11, 15]` with attention fusion
-- Retrain and compare Stage-6 evaluation metrics
-
-Short-term:
-- Reduce class confusions (especially large-vessel overlaps)
-- Add physics-consistent augmentations
-- Holdout validation on unseen conditions
-
-Long-term:
-- Test on real hydrophone data (ShipEar, NOAA, etc.)
-- ONNX export for embedded deployment
-- Real-time streaming inference
-
----
-
-## 📄 Licence
-
-[Add your licence here]
+### Next
+- Linear probe benchmarking
+- Real hydrophone validation
+- Edge deployment (ONNX / Jetson)
 
 ---
 
 *Last updated: January 2026*
+
+
+---
+
+## 🧪 V2.1.0 Experiment Provenance
+
+**Experiment ID**  
+`2026-01-07_sk_integrated`
+
+**Execution Platform**
+- Kaggle notebook environment
+- Dual NVIDIA T4 GPUs
+- Distributed Data Parallel (DDP)
+
+**Training Regime**
+- Self-supervised learning using **Barlow Twins**
+- Physics-aware **Selective Kernel (SK) filterbank**
+- Cosine similarity metric for embedding evaluation
+
+**Data Regime**
+- Synthetic underwater acoustic dataset
+- 1,920 clips, 1 second each
+- Vessel classes: small craft, fishing vessel, cargo ship, tanker
+- Full-factorial coverage of speed, cavitation, blade count, sea state
+
+**Evaluation**
+- Primary metric: **Silhouette score (cosine)**
+- Achieved: **0.8299**
+- Downstream validation via Stage-6 territory-based classification
+
+**Reproducibility Anchor**
+- Full run configuration and environment metadata recorded at:
+  ```
+  stages/stage3_ssl/runs/2026-01-07_sk_integrated/run_metadata.yaml
+  ```
