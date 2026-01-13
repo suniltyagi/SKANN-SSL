@@ -160,6 +160,35 @@ artifacts:
     silhouette: "diagnostics/silhouette_analysis.png"
     territory_map: "diagnostics/territory_map.png"
 
+
+    # --- Existing metadata ---
+run_id: "2026-01-07_kaggle_v2.1.0_underwater"
+stage: 3
+model_version: "V2.1.0"
+
+# --- Diagnostic Parameters (Stage-3 SSL) ---
+diagnostics:
+  silhouette_analysis:
+    score: 0.8299
+    n_clusters: 5
+
+  dimensionality_reduction:
+    tsne:
+      perplexity: 30
+      learning_rate: 200
+      n_iter: 1000
+    umap:
+      n_neighbors: 15
+      min_dist: 0.1
+      metric: "cosine"
+
+# --- Diagnostic Artifacts ---
+outputs:
+  silhouette_plot: "artifacts/diagnostics/silhouette_analysis.png"
+  tsne_plot: "artifacts/diagnostics/tsne.png"
+  umap_plot: "artifacts/diagnostics/vessel_signature_umap_2d.png"
+  territory_map: "artifacts/diagnostics/territory_map.png"
+
 # =============================================================================
 # SOURCE FILES
 # =============================================================================
