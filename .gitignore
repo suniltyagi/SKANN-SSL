@@ -90,3 +90,20 @@ stages/stage3_ssl/artifacts/*.joblib
 # Stage-3 trained model artefacts (kept locally, not versioned)
 stages/stage3_ssl/artifacts/*.joblib
 
+# =============================================================================
+# Stage 7 Demo - Large Data Files (local only, not versioned)
+# =============================================================================
+
+# Demo model bundles (user downloads or copies from training)
+stages/stage7_deployment/demo/model/*.joblib
+
+# Demo tensor data (user copies or symlinks to data/prototype_dataset/tensors/)
+stages/stage7_deployment/demo/data/tensors/*.npy
+
+# Allow .gitkeep placeholders so directories exist after clone
+!stages/stage7_deployment/demo/model/.gitkeep
+!stages/stage7_deployment/demo/data/tensors/.gitkeep
+
+# Allow the manifest (small metadata file ~542KB)
+!stages/stage7_deployment/demo/data/manifest.csv
+

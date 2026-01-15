@@ -67,6 +67,26 @@ Input Audio (.npy tensor)
 | File | Description |
 |------|-------------|
 | `acoustic_sonar_classifier3.py` | Interactive CLI classifier |
+| `demo/skann_ssl_demo_v2.py` | GUI demo with audio playback |
+
+---
+
+## GUI Demo Application
+
+For an interactive GUI-based classifier with radar plot visualization and audio playback:
+
+```bash
+cd demo/
+python skann_ssl_demo_v2.py
+```
+
+Features:
+- Tkinter GUI with real-time radar plot
+- Audio playback of acoustic signatures
+- Dropdown clip selection
+- Visual confidence display
+
+See `demo/README.md` for setup instructions (model/tensor files required).
 
 ---
 
