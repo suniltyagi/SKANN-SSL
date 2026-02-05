@@ -1,0 +1,10 @@
+sil_h: 0.969706
+sil_z: 0.887624
+knn_acc: 1.000000
+
+Per-class h:
+cargo_ship: 0.892282
+fishing_vessel: 0.959968
+no_vessel: 0.999979
+small_craft: 0.996874
+tanker: 0.999428

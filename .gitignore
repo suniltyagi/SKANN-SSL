@@ -107,3 +107,11 @@ stages/stage7_deployment/demo/data/tensors/*.npy
 # Allow the manifest (small metadata file ~542KB)
 !stages/stage7_deployment/demo/data/manifest.csv
 
+ 
+# ============================================================================= 
+# Stage 3 Artifacts - Allow small files, ignore large ones 
+# ============================================================================= 
+!stages/stage3_ssl/artifacts/vessel_territories_v3.joblib 
+!stages/stage3_ssl/artifacts/labels.npy 
+!stages/stage3_ssl/artifacts/loss_history.csv 
+!stages/stage3_ssl/artifacts/final_metrics.txt 

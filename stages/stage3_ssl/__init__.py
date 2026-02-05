@@ -1,14 +1,18 @@
 """
-Stage 3: Self-Supervised Learning (V2.1.0)
+Stage 3: Self-Supervised Learning (V3.0.0)
 
-Canonical V2.1.0 training entrypoints:
-- skann-ssl-v2-1-0-training.ipynb
-- train_script_repo.py
+Canonical training notebook:
+    SKANN_SSL_V3_Training_Colab.ipynb  (Google Colab A100)
 
-Note:
-- For V2.1.0, the Barlow Twins loss is implemented inline in train_script_repo.py.
-- The historical V1 module exports (Projector, BarlowTwinsLoss) are intentionally not re-exported here.
-  See archive/v1_baseline_dec2025/stage3_ssl/ for the baseline implementation.
+Key modules:
+    barlow_twins.py      — Barlow Twins loss function
+    pairing_manifest.py  — Hard-positive pairing logic
+
+Current metrics (V3, V5 dataset):
+    Silhouette (h): 0.9697
+    kNN accuracy:   1.0000
+
+See README.md for full details.
 """
 
 __all__ = []
