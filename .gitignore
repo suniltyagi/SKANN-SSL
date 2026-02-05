@@ -1,15 +1,27 @@
 # =========================
 # SKANN-SSL repo .gitignore
 # =========================
-# Intent (custom):
-# - COMMIT: Stage-6 vessel_territories_stage6_*.joblib
-# - COMMIT: Stage-6 confusion_matrix.png + confusion_report.txt
-# - COMMIT: Stage-3 runs/*/loss_history.csv (posterity)
-# - COMMIT: notebooks (.ipynb)
-# - COMMIT: UMAP diagnostic under artifacts/diagnostics
-# - COMMIT: data/prototype_dataset/pairing_manifest.csv
 #
-# - IGNORE: heavy weights (*.pth/*.pt/*.ckpt), generic joblibs, and most generated artifacts/runs.
+# RULE: All ignore patterns FIRST, then all exceptions (!) LAST.
+# Git processes .gitignore top-to-bottom; later rules override earlier ones.
+#
+# COMMIT:
+# - Stage-6 vessel_territories, confusion_matrix, confusion_report
+# - Stage-3 runs loss_history, run_metadata
+# - Stage-3 small artifacts (territories, labels, metrics)
+# - Diagnostics PNGs under artifacts/diagnostics/
+# - data/ infographic outputs (distribution, comparison, PDF)
+# - Notebooks (.ipynb)
+#
+# IGNORE:
+# - Heavy weights (*.pth, *.pt, *.ckpt, *.joblib, *.npy)
+# - Binary images/PDFs by default (*.png, *.jpg, *.pdf)
+# - Generated artifacts and runs
+# - Large spectrogram infographic (7.5 MB, regenerable)
+
+# =============================================================================
+# SECTION 1: IGNORE RULES
+# =============================================================================
 
 # ---- OS / IDE ----
 .DS_Store
@@ -29,7 +41,7 @@ env/
 # Jupyter runtime
 .ipynb_checkpoints/
 
-# ---- Large model/weight formats (ignore) ----
+# ---- Large model/weight formats ----
 *.pth
 *.pt
 *.ckpt
@@ -38,27 +50,62 @@ env/
 *.tflite
 *.npy
 
-# ---- Generic joblib (ignore) ----
+# ---- Generic joblib ----
 *.joblib
+
+# ---- Binary image/doc formats (don't diff) ----
+*.png
+*.jpg
+*.jpeg
+*.pdf
 
 # ---- Stage generated outputs (ignore by default) ----
 stages/**/runs/**
 stages/**/artifacts/**
 
+# ---- Stage 3 large model artifacts (use Google Drive) ----
+stages/stage3_ssl/artifacts/*.joblib
+
+# ---- Stage 7 Demo large files (local only) ----
+stages/stage7_deployment/demo/model/*.joblib
+stages/stage7_deployment/demo/data/tensors/*.npy
+
+# ---- Local backups ----
+data/prototype_dataset/*BACKUP*.csv
+stages/stage3_ssl/*backup*.py
+
+# ---- Local scratch files ----
+structure.txt
+structure_clean.txt
+generate_metadata_post_hoc.py
+
+# ---- Large spectrogram (7.5 MB, regenerable from infographic.py) ----
+data/spectrogram_infographic.png
+
+# ---- Local-only folders (not for git) ----
+archive/
+deliverables/
+SKANN_SSL_HANDOVER_BRIEF.md
+
 # =============================================================================
-# Exceptions (ALLOW-LIST) — place AFTER ignore rules
+# SECTION 2: EXCEPTIONS (ALLOW-LIST) — must come AFTER all ignore rules
 # =============================================================================
 
-# Keep project-facing diagnostics
+# ---- data/ infographic outputs (small, useful in repo) ----
+!data/dataset_distribution.png
+!data/vessel_comparison.png
+!data/SKANN_SSL_V5_Dataset_Infographic.pdf
+
+# ---- Stage diagnostics PNGs ----
 !stages/**/artifacts/diagnostics/
 !stages/**/artifacts/diagnostics/**
 
-# Keep specific Stage-6 artifacts
+# ---- Stage 6 artifacts ----
 !stages/stage6_evaluation/artifacts/vessel_territories_stage6_*.joblib
 !stages/stage6_evaluation/artifacts/confusion_matrix.png
 !stages/stage6_evaluation/artifacts/confusion_report.txt
 
-# Keep loss history for posterity (even though runs/ is ignored)
+# ---- Stage 3 runs (loss history, metadata) ----
 !stages/stage3_ssl/runs/
 !stages/stage3_ssl/runs/**/
 !stages/stage3_ssl/runs/**/loss_history.csv
@@ -66,52 +113,13 @@ stages/**/artifacts/**
 !stages/stage3_ssl/runs/README.md
 !stages/stage3_ssl/runs/**/run_metadata.yaml
 
-# Keep baseline pairing manifest in data/
-!data/prototype_dataset/pairing_manifest.csv
+# ---- Stage 3 small artifacts ----
+!stages/stage3_ssl/artifacts/vessel_territories_v3.joblib
+!stages/stage3_ssl/artifacts/labels.npy
+!stages/stage3_ssl/artifacts/loss_history.csv
+!stages/stage3_ssl/artifacts/final_metrics.txt
 
-# ---- Binaries (don’t try to diff) ----
-*.png
-*.jpg
-*.jpeg
-*.pdf
-
-# Local backups
-data/prototype_dataset/*BACKUP*.csv
-stages/stage3_ssl/*backup*.py
-
-# Local scratch files (do not commit)
-structure.txt
-structure_clean.txt
-generate_metadata_post_hoc.py
-
-# Large artefacts (use Google Drive)
-stages/stage3_ssl/artifacts/*.joblib
-
-# Stage-3 trained model artefacts (kept locally, not versioned)
-stages/stage3_ssl/artifacts/*.joblib
-
-# =============================================================================
-# Stage 7 Demo - Large Data Files (local only, not versioned)
-# =============================================================================
-
-# Demo model bundles (user downloads or copies from training)
-stages/stage7_deployment/demo/model/*.joblib
-
-# Demo tensor data (user copies or symlinks to data/prototype_dataset/tensors/)
-stages/stage7_deployment/demo/data/tensors/*.npy
-
-# Allow .gitkeep placeholders so directories exist after clone
+# ---- Stage 7 Demo placeholders and manifest ----
 !stages/stage7_deployment/demo/model/.gitkeep
 !stages/stage7_deployment/demo/data/tensors/.gitkeep
-
-# Allow the manifest (small metadata file ~542KB)
 !stages/stage7_deployment/demo/data/manifest.csv
-
- 
-# ============================================================================= 
-# Stage 3 Artifacts - Allow small files, ignore large ones 
-# ============================================================================= 
-!stages/stage3_ssl/artifacts/vessel_territories_v3.joblib 
-!stages/stage3_ssl/artifacts/labels.npy 
-!stages/stage3_ssl/artifacts/loss_history.csv 
-!stages/stage3_ssl/artifacts/final_metrics.txt 
