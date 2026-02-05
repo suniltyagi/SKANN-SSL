@@ -1,17 +1,165 @@
-# SKANN-SSL Stage -1: Synthetic Waveform Generator
+# Stage −1: Synthetic Waveform Generation System
 
 ## Overview
 
-This module generates synthetic underwater acoustic waveforms for training the SKANN-SSL (Selective Kernel Audio Neural Networks with Self-Supervised Learning) system. It combines physically-motivated models of:
+Stage −1 generates synthetic underwater acoustic waveforms for training the SKANN-SSL (Selective Kernel Audio Neural Networks with Self-Supervised Learning) system. It combines physically-motivated models of:
 
-1. **Sea Noise** — based on digitized Knudsen curves (4 sea states)
-2. **Ship Noise** — tonal + broadband + cavitation components (4 vessel classes)
+1. **Sea Noise** — Piecewise parametric Knudsen model (4 sea states)
+2. **Ship Noise** — Tonal + broadband + cavitation components (4 vessel classes)
+3. **No-Vessel** — Ambient ocean noise only (detection capability)
 
 The generator produces a **full-factorial structured dataset** covering all combinations of design factors for systematic ML training and evaluation.
+
+This stage is part of the canonical SKANN-SSL pipeline:
+
+**Stage −1 → 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7**
+
+---
+
+## Version History
+
+| Version | Clips | Duration | Classes | Key Changes |
+|---------|-------|----------|---------|-------------|
+| V1 | 1,920 | 1.0 s | 4 vessel | Baseline full-factorial |
+| V2 | 1,920 | 1.0 s | 4 vessel | SK kernel fix (silhouette 0.83) |
+| V3 | 2,400 | 5.0 s | 5 classes | Added no_vessel, 5s for tanker periodicity |
+| **V5** | **12,000** | **5.0 s** | **5 classes** | **Non-overlapping shaft rates, 3 resonances, swell fix** |
+
+---
+
+## V5.0.0 Dataset (Current)
+
+### Signal Parameters
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| Sampling Frequency | 16,000 Hz | Nyquist = 8,000 Hz |
+| Clip Duration | 5.0 s | Captures tanker periodicity |
+| Samples per Clip | 80,000 | N_SAMPLES = FS × DURATION |
+| Frequency Resolution | 0.2 Hz | Δf = 1/T |
+| Analysis Band | 10–8,000 Hz | Physical constraint |
+| Reference Pressure | 1 µPa | Underwater standard |
+
+### Why 5 Seconds?
+
+**1. Tanker Periodicity Problem**
+- Tanker shaft rate: ~1 Hz (60 RPM)
+- At 1.0s duration: Only 1 propeller rotation captured
+- Neural network cannot detect periodicity from a single cycle
+- At 5.0s duration: 5 full rotations → clear periodic pattern
+
+**2. Spectral Resolution**
+- Δf = 1/T (fundamental DSP limit)
+- At 1.0s: Cannot distinguish 1.1 Hz from 1.9 Hz (both in same bin)
+- At 5.0s: 0.2 Hz resolution → sharp, distinct spectral lines
+
+**3. Augmentation Survival**
+- Barlow Twins crops audio for augmentation
+- 1s clip cropped to 50% = 0.5s = half a tanker rotation (identity lost)
+- 5s clip cropped to 50% = 2.5s = still 2–3 full cycles (identity preserved)
+
+### Class Distribution
+
+| Class | Clips | Description |
+|-------|-------|-------------|
+| small_craft | 2,400 | 15–30 Hz shaft rate, high-freq cavitation |
+| fishing_vessel | 2,400 | 4–8 Hz shaft rate, mid-freq cavitation |
+| cargo_ship | 2,400 | 1.5–2.5 Hz shaft rate, low-freq signature |
+| tanker | 2,400 | 1.0–1.5 Hz shaft rate, lowest cavitation peak |
+| no_vessel | 2,400 | Ambient sea noise only |
+| **Total** | **12,000** | |
+
+---
+
+## V5 Critical Fixes
+
+### 1. Non-Overlapping Shaft Rate Ranges
+
+Previous versions had overlapping boundaries that made vessel classes acoustically indistinguishable at certain shaft rates. V5 enforces strict separation:
+
+| Vessel Class | Shaft Rate (Hz) | RPM | Gap to Next |
+|--------------|-----------------|-----|-------------|
+| tanker | 1.00 – 1.50 | 60–90 | — |
+| cargo_ship | 1.50 – 2.50 | 90–150 | 0.0006 Hz |
+| fishing_vessel | 4.00 – 8.00 | 240–480 | 1.50 Hz |
+| small_craft | 15.01 – 30.00 | 900–1800 | 7.01 Hz |
+
+The large gaps between fishing_vessel↔small_craft (7 Hz) and cargo_ship↔fishing_vessel (1.5 Hz) ensure acoustic distinguishability.
+
+### 2. Exactly 3 Resonances Per Clip
+
+V5 enforces exactly 3 structural resonances per vessel clip (previously variable):
+
+| Resonance Band | Frequency Range | Physical Source |
+|----------------|-----------------|-----------------|
+| Band 1 | 50–150 Hz | Hull modes |
+| Band 2 | 100–300 Hz | Foundation/mounting |
+| Band 3 | 200–500 Hz | Piping/ductwork |
+
+### 3. Corrected Swell Frequency
+
+V5 uses realistic ocean swell periods for cavitation modulation:
+- **V5**: 0.05–0.15 Hz (6.7–20 second periods) ✓
+- **Previous**: 0.5 Hz (unrealistic 2-second period) ✗
+
+---
+
+## Full-Factorial Experimental Design
+
+### Design Factors (Vessel Classes)
+
+| Factor | Levels | Count |
+|--------|--------|-------|
+| Sea State | 0, 1, 3, 6 | 4 |
+| Vessel Class | small_craft, fishing_vessel, cargo_ship, tanker | 4 |
+| Blade Count | 3, 4, 5 | 3 |
+| Generator Frequency | 0 Hz (off), 50 Hz | 2 |
+| Cavitation Intensity | 0.0, 0.333, 0.667, 1.0 | 4 |
+| Repetitions | 25 | 25 |
+
+**Total Vessel Clips:** 4 × 4 × 3 × 2 × 4 × 25 = **9,600**
+
+### Design Factors (No-Vessel Class)
+
+| Factor | Levels | Count |
+|--------|--------|-------|
+| Sea State | 0, 1, 3, 6 | 4 |
+| Repetitions per state | 600 | 600 |
+
+**Total No-Vessel Clips:** 4 × 600 = **2,400**
+
+**Grand Total:** 9,600 + 2,400 = **12,000 clips**
 
 ---
 
 ## Architecture
+
+### Data Extraction (One-Time Setup)
+
+```
+Knudsen Curve Digitization
+──────────────────────────
+
+┌─────────────────────┐     ┌─────────────────────┐     ┌─────────────────────┐
+│  knudsens_curve.svg │────▶│  WebPlotDigitizer   │────▶│  SS*CSV.txt files   │
+│  (Reference image)  │     │  (Manual extraction)│     │  (freq, NL pairs)   │
+└─────────────────────┘     └─────────────────────┘     └─────────────────────┘
+                                                                  │
+                                     ┌────────────────────────────┘
+                                     ▼
+                            ┌─────────────────┐
+                            │ SS0CSV.txt (Calm)│
+                            │ SS1CSV.txt       │
+                            │ SS3CSV.txt       │
+                            │ SS6CSV.txt       │
+                            └─────────────────┘
+```
+
+The Knudsen curves were digitized from published ocean ambient noise spectra using 
+[WebPlotDigitizer](https://automeris.io/WebPlotDigitizer/). The extracted (frequency, noise level) 
+pairs are stored in `data/SS*CSV.txt` and fitted to a piecewise parametric model by `sea_noise.py`.
+
+### Generation Pipeline
 
 ```
 Stage -1 Pipeline
@@ -26,432 +174,353 @@ Stage -1 Pipeline
 │  └──────────────┘    └──────────────┘    └──────┬───────┘       │
 └─────────────────────────────────────────────────┼───────────────┘
                                                   │
-                                                  ▼
-                                           ┌──────────────┐
-                                           │   SNR Mix    │──────▶ Output
-                                           │   (6 dB)     │        Waveform
-                                           └──────┬───────┘
-                                                  ▲
-┌─────────────────────────────────────────────────┼───────────────┐
-│                    Ship Noise Generation        │               │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────┴───────┐       │
-│  │ Vessel       │───▶│ Tonal        │───▶│              │       │
-│  │ Parameters   │    │ (shaft,BPF,  │    │   Combined   │       │
-│  │              │    │  generator,  │    │   Ship       │       │
-│  │              │    │  equipment,  │    │   Signal     │       │
-│  │              │    │  resonances) │    │              │       │
+                              ┌────────────────────┼────────────────┐
+                              │                    │                │
+                              ▼                    ▼                ▼
+                       ┌──────────────┐     ┌──────────────┐  ┌──────────┐
+                       │   SNR Mix    │     │  No Vessel   │  │  Output  │
+                       │   (6 dB)     │     │  (sea only)  │  │ Waveform │
+                       └──────┬───────┘     └──────────────┘  └──────────┘
+                              ▲
+┌─────────────────────────────┼───────────────────────────────────┐
+│                    Ship Noise Generation                         │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
+│  │ Vessel       │───▶│ Tonal        │───▶│   Combined   │       │
+│  │ Parameters   │    │ (shaft,BPF,  │    │   Ship       │       │
+│  │              │    │  generator)  │    │   Signal     │       │
 │  └──────────────┘    └──────────────┘    │              │       │
 │                                          │              │       │
 │  ┌──────────────┐    ┌──────────────┐    │              │       │
-│  │ Broadband    │───▶│ Flow Noise   │───▶│              │       │
-│  │ Parameters   │    │ (shaped)     │    │              │       │
-│  └──────────────┘    └──────────────┘    │              │       │
-│                                          │              │       │
-│  ┌──────────────┐    ┌──────────────┐    │              │       │
-│  │ Cavitation   │───▶│ Blade-Gated  │───▶│              │       │
-│  │ Bursts       │    │ Physical     │    │              │       │
-│  │ (200 kHz)    │    │ Model        │    │              │       │
+│  │ Cavitation   │───▶│ Burst Model  │───▶│              │       │
+│  │ Intensity    │    │ (physical)   │    │              │       │
 │  └──────────────┘    └──────────────┘    └──────────────┘       │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Files
+## Ship Noise Model
 
-| File | Description |
-|------|-------------|
-| `config.py` | All configuration parameters (signal, sea, ship, factorial design) |
-| `sea_noise.py` | Knudsen model and sea noise generator |
-| `ship_noise.py` | Ship noise components (tonal, broadband, cavitation bursts) |
-| `generator.py` | Random sampling generator (legacy, 500 clips) |
-| `full_factorial_generator.py` | **Full-factorial structured dataset generator (1920 clips)** |
-| `infographic.py` | Dataset visualization and summary graphics |
-| `__init__.py` | Package exports |
-| `data/SS*CSV.txt` | Digitized Knudsen curves |
+### Acoustic Components
 
----
+The ship noise signal comprises six component types:
 
-## Full-Factorial Dataset Design
+#### 1. Shaft Rate Harmonics
+Fundamental shaft rotation frequency plus harmonics from mechanical imbalance:
+```
+f_shaft = n_shaft / 60  [Hz]
+```
+Amplitude decays at 3 dB per harmonic.
 
-The structured dataset covers **all combinations** of design factors:
+#### 2. Blade Pass Frequency (BPF) Harmonics
+The dominant tonal component:
+```
+f_BPF = n_blades × f_shaft  [Hz]
+```
+Amplitude decays at 4 dB per harmonic.
 
-| Factor | Levels | Count |
-|--------|--------|-------|
-| Sea State | {0, 1, 3, 6} | 4 |
-| Vessel Class | {small_craft, fishing_vessel, cargo_ship, tanker} | 4 |
-| Blade Count | {3, 4, 5} | 3 |
-| Generator Frequency | {0, 50} Hz | 2 |
-| Cavitation Intensity | {0.0, 0.333, 0.667, 1.0} | 4 |
-| Repetitions | 5 per combination | 5 |
+#### 3. Generator Harmonics
+For vessels with electrical generators (50 Hz or 60 Hz systems):
+```
+f_gen = {50, 100, 150} Hz  or  {60, 120, 180} Hz
+```
+Level is 10 dB below shaft harmonics.
 
-**Total: 4 × 4 × 3 × 2 × 4 × 5 = 1920 clips**
+#### 4. Equipment Running Frequency
+Shipboard machinery (pumps, compressors, fans):
+```
+f_equip = 25 Hz or 30 Hz (depending on generator)
+```
+Level is 15 dB below shaft harmonics with 4–7 harmonics.
 
----
+#### 5. Structural Resonances
+Three narrowband resonances per clip from ship structure (see V5 fixes above).
 
-## Quick Start
+#### 6. Broadband Flow Noise
+Hydrodynamic turbulence with power-law spectrum:
+```
+S_flow(f) ∝ f^(rolloff/20)
+```
+Rolloff varies by vessel class (−3 to −6 dB/octave).
 
-### Generate Full-Factorial Dataset (Recommended)
+### Cavitation Burst Model
 
+Cavitation is modeled as discrete bubble collapse events using a physical approach:
+
+#### High-Resolution Generation
+Bursts are generated at **200 kHz** to capture the µs-scale collapse physics, then downsampled to 16 kHz with anti-aliasing:
 ```python
-from stages.stage_minus1.full_factorial_generator import FullFactorialDatasetGenerator
-
-# Generate 1920 structured clips
-generator = FullFactorialDatasetGenerator()
-df = generator.generate(verbose=True)
-
-# Output:
-# - data/prototype_dataset/waveforms/clip_000000.npy ... clip_001919.npy
-# - data/prototype_dataset/master_dataset_manifest.csv (26 columns)
+FS_BURST = 200000  # 200 kHz generation
+# ... burst synthesis ...
+cav = scipy_signal.decimate(burst_sig, FS_BURST // FS, zero_phase=True)
 ```
 
-### Generate a Single Clip
-
+#### Blade-Gated Timing
+Bursts occur synchronised to blade passage with swell modulation:
 ```python
-from stages.stage_minus1.generator import SyntheticDataGenerator
-import numpy as np
-
-gen = SyntheticDataGenerator()
-rng = np.random.default_rng(42)
-
-# Generate combined ship + sea noise
-waveform, metadata = gen.generate_clip(
-    sea_state=3,
-    vessel_class='cargo_ship',
-    snr_db=6.0,
-    rng=rng
-)
-
-print(f"Shape: {waveform.shape}")       # (16000,)
-print(f"Duration: 1.0 second")
-print(f"BPF: {metadata.blade_pass_freq:.1f} Hz")
+swell_freq = rng.uniform(0.05, 0.15)  # V5: Realistic ocean swell
+t_burst = t_nominal + 0.1 * sin(2π × swell_freq × t) × period
 ```
 
-### Use Individual Components
+#### Burst Physics
+- **Collapse time (τ)**: 50–200 µs (Rayleigh collapse)
+- **Envelope**: Exponential decay × sinusoidal carrier
+- **Peak frequency**: Vessel-dependent (400–5000 Hz)
 
-```python
-from stages.stage_minus1.sea_noise import SeaNoiseGenerator
-from stages.stage_minus1.ship_noise import ShipNoiseGenerator
-
-# Sea noise only
-sea_gen = SeaNoiseGenerator()
-sea_waveform = sea_gen.generate_frame(sea_state=3)
-
-# Ship noise only
-ship_gen = ShipNoiseGenerator()
-ship_waveform, params = ship_gen.generate(vessel_class='tanker')
-
-# Access generated parameters
-print(f"Shaft rate: {params.shaft_rate:.2f} Hz")
-print(f"BPF: {params.blade_pass_freq:.2f} Hz")
-print(f"Resonances: {params.resonance_freq_1:.1f}, {params.resonance_freq_2:.1f} Hz")
-print(f"Cavitation bursts: {params.n_cavitation_bursts}")
-```
+| Vessel Class | Cavitation Peak | Physical Reason |
+|--------------|-----------------|-----------------|
+| small_craft | 5000 Hz | Small bubbles collapse quickly |
+| fishing_vessel | 1500 Hz | Medium bubble size |
+| cargo_ship | 600 Hz | Large bubbles |
+| tanker | 400 Hz | Largest bubbles collapse slowly |
 
 ---
 
-## Signal Parameters
+## Sea Noise Model (Knudsen)
 
-| Parameter | Value | Notes |
-|-----------|-------|-------|
-| Sampling Frequency | 16,000 Hz | Prototype (32 kHz for full system) |
-| Clip Duration | 1.0 second | Fixed |
-| Samples per Clip | 16,000 | N_SAMPLES |
-| Frequency Band | 10 Hz – 8,000 Hz | No simulation below 10 Hz |
-| Reference Pressure | 1 µPa | Standard underwater reference |
-
----
-
-## Sea Noise (Knudsen Model)
-
-The piecewise parametric model:
+### Piecewise Parametric Model
 
 ```
 NL(f) = a · log₁₀(f) + b   [dB re 1 µPa²/Hz]
 ```
 
+Coefficients (a, b) are fitted from digitised Knudsen curves for each sea state.
+
+### Frequency Bands
+
 | Band | Frequency Range | Physical Mechanism |
 |------|-----------------|-------------------|
-| Turbulence | 10 Hz → ~38 Hz | Hydrodynamic turbulence (flat plateau) |
-| LF | ~38 Hz → 200 Hz | Wind/mechanical (rising) |
+| Turbulence | 10 Hz → f_t | Hydrodynamic turbulence (flat plateau) |
+| LF | f_t → 200 Hz | Wind/mechanical (rising) |
 | MF | 200 Hz → 500 Hz | Transition shoulder |
 | HF | 500 Hz → 8000 Hz | Wind-driven decay |
 
-**Sea States**: 0 (calm), 1 (light air), 3 (gentle breeze), 6 (strong breeze)
+where f_t ≈ 30–40 Hz is the turbulence-LF transition frequency.
+
+### Sea State Levels
+
+| Sea State | Description | Sea RMS (Pa) | Sea SPL (dB) |
+|-----------|-------------|--------------|--------------|
+| 0 | Calm | 0.0076 | 77.6 |
+| 1 | Light air | 0.0151 | 83.6 |
+| 3 | Gentle breeze | 0.0479 | 93.6 |
+| 6 | Strong breeze | 0.1514 | 103.6 |
 
 ---
 
-## Ship Noise Components
+## SNR-Controlled Mixing
 
-### Vessel Classes
+Ship and sea signals are combined at a controlled signal-to-noise ratio:
 
-| Vessel Class | Shaft Rate (Hz) | BPF Range (Hz) | Cavitation Peak (Hz) |
-|--------------|-----------------|----------------|----------------------|
-| small_craft | 15-30 | 45-90 | 5000 |
-| fishing_vessel | 4-8 | 12-32 | 1500 |
-| cargo_ship | 1.5-2.5 | 6-12.5 | 600 |
-| tanker | 1.0-1.5 | 4-9 | 400 |
+```
+SNR = L_ship − L_sea = 6 dB
+```
 
-### Acoustic Components
+The ship waveform is scaled to achieve exactly 6 dB above the sea noise floor:
 
-| Component | Description | Frequency Range |
-|-----------|-------------|-----------------|
-| Shaft Rate Harmonics | f₀ × h (h=1 to n_harmonics) | 10+ Hz |
-| Blade Pass Frequency | BPF = f₀ × n_blades, + harmonics | 10+ Hz |
-| Generator Harmonics | 50 Hz (or 60 Hz) + harmonics | 50-350 Hz |
-| Equipment Running | 25 Hz (50 Hz supply) or 30 Hz (60 Hz supply) | 25-175 Hz |
-| Structural Resonances | Hull (50-150), Foundation (100-300), Piping (200-500) | 50-500 Hz |
-| Broadband Flow | Flat to 500 Hz, then -3 dB/octave rolloff | 10-8000 Hz |
-| Cavitation Bursts | Blade-gated physical model, 200 kHz generation | Vessel-specific peak |
-
-### Cavitation Burst Model
-
-Cavitation is modeled as **discrete bubble collapse events**:
-- Generated at 200 kHz to capture µs-scale physics
-- Downsampled with anti-aliasing to 16 kHz
-- Blade-gated timing (activity windows during blade passage)
-- Three burst types: collapse (60%), cloud (30%), sheet (10%)
-- Amplitude scaled by CAVITATION_GAIN = 0.001
+```python
+scale_factor = sea_rms * 10^(SNR_DB / 20) / ship_rms
+combined = sea + scale_factor * ship
+```
 
 ---
 
-## Output Format
+## Output Specification
 
-### Waveform Files
-- **Location**: `data/prototype_dataset/waveforms/clip_XXXXXX.npy`
-- **Shape**: `(16000,)` — 1 second at 16 kHz
-- **Type**: `float32`
-- **Units**: Pascals (Pa)
+### Dataset Location
 
-### Tensor Files (Preprocessed)
-- **Location**: `data/prototype_dataset/tensors/tensor_XXXXXX.npy`
-- **Shape**: `(1, 1, 16000)` — ready for Conv1D `[batch, channels, samples]`
-- **Preprocessing**: DC removal + RMS normalization
+**Google Drive:** [SKANN_SSL_V5_Dataset](https://drive.google.com/drive/u/1/folders/1E6vhPnkY8x8YzZ3a-k6PnL_G9gnq5gBo)
 
-### Master Dataset Manifest (26 columns)
+**GitHub (Public):** [Underwater-Acoustic-Synthetic-Dataset](https://github.com/suniltyagialtair/Underwater-Acoustic-Synthetic-Dataset)
 
-The `master_dataset_manifest.csv` is the **authoritative source** for the dataset, containing all metadata plus file paths.
+### File Structure
+
+```
+SKANN_SSL_V5_Dataset/
+├── waveforms/
+│   ├── clip_000000.npy
+│   ├── clip_000001.npy
+│   └── ... (12,000 files)
+├── tensors/
+│   ├── tensor_000000.npy
+│   ├── tensor_000001.npy
+│   └── ... (12,000 files)
+├── master_dataset_manifest.csv
+└── pairing_manifest.csv
+```
+
+### File Formats
+
+| Type | Format | Shape | Units |
+|------|--------|-------|-------|
+| Waveforms | `.npy` (Float32) | (80000,) | Pascals |
+| Tensors | `.npy` (Float32) | (1, 1, 80000) | Normalised |
+| Manifest | `.csv` | 12,000 rows × 27 columns | Metadata |
+
+### Manifest Schema (27 Columns)
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `clip_id` | int | Unique identifier (0-1919) |
-| `repeat_index` | int | Repetition index (0-4) |
-| **Design Factors** | | |
-| `sea_state` | int | 0, 1, 3, or 6 |
-| `vessel_class` | str | Vessel type |
-| `n_blades` | int | Number of propeller blades (3, 4, or 5) |
-| `generator_freq` | float | 0.0 or 50.0 Hz |
-| `cavitation_intensity` | float | 0.0, 0.333, 0.667, or 1.0 |
-| **Derived Values** | | |
-| `shaft_rate` | float | Fundamental frequency (Hz) |
-| `blade_pass_freq` | float | BPF = shaft_rate × n_blades |
-| `has_cavitation` | bool | Whether cavitation is present |
-| `cavitation_peak_freq` | float | Weighted average burst carrier (Hz) |
-| `n_cavitation_bursts` | int | Number of bursts in this clip |
-| `equipment_base_freq` | float | 25.0 or 30.0 Hz |
-| `resonance_freq_1` | float | First structural resonance (Hz) |
-| `resonance_freq_2` | float | Second structural resonance (Hz) |
-| `resonance_freq_3` | float | Third structural resonance (Hz), 0 if only 2 |
-| **Acoustic Measurements** | | |
-| `sea_rms_pa` | float | RMS of sea noise (Pa) |
-| `ship_rms_pa` | float | RMS of scaled ship noise (Pa) |
-| `combined_rms_pa` | float | RMS of combined signal (Pa) |
-| `scale_factor` | float | Ship scaling factor for SNR |
-| `sea_spl_db` | float | Sea noise SPL (dB re 1 µPa) |
-| `ship_spl_db` | float | Ship noise SPL (dB re 1 µPa) |
-| `combined_spl_db` | float | Combined SPL (dB re 1 µPa) |
-| `snr_db` | float | Actual SNR achieved (target: 6.0 dB) |
-| **File Paths** | | |
-| `tensor_path` | str | Full path to preprocessed tensor |
-| `waveform_path` | str | Full path to raw waveform |
+| clip_id | int | Unique identifier (0–11999) |
+| repeat_index | int | Repetition within combination |
+| sea_state | int | Sea state (0, 1, 3, 6) |
+| vessel_class | str | Class label |
+| n_blades | int | Propeller blade count |
+| generator_freq | float | Generator frequency (0 or 50 Hz) |
+| cavitation_intensity | float | Cavitation level (0.0–1.0) |
+| shaft_rate | float | Shaft rotation frequency (Hz) |
+| blade_pass_freq | float | BPF = shaft_rate × n_blades |
+| has_cavitation | bool | Whether cavitation is present |
+| cavitation_peak_freq | float | Cavitation spectral peak (Hz) |
+| n_cavitation_bursts | int | Number of bursts in clip |
+| equipment_base_freq | float | Equipment running frequency |
+| resonance_freq_1 | float | First resonance (Hz) |
+| resonance_freq_2 | float | Second resonance (Hz) |
+| resonance_freq_3 | float | Third resonance (Hz) |
+| sea_rms_pa | float | Sea noise RMS (Pascals) |
+| ship_rms_pa | float | Ship noise RMS (Pascals) |
+| combined_rms_pa | float | Combined RMS (Pascals) |
+| scale_factor | float | Ship scaling for SNR |
+| sea_spl_db | float | Sea SPL (dB re 1 µPa) |
+| ship_spl_db | float | Ship SPL (dB re 1 µPa) |
+| combined_spl_db | float | Combined SPL (dB re 1 µPa) |
+| snr_db | float | Actual SNR (dB) |
+| filename | str | Waveform filename |
+| tensor_path | str | Tensor relative path |
+| waveform_path | str | Waveform relative path |
 
 ---
 
-## Integration with Stage 0
+## Tensor Preprocessing (Stage 0 Interface)
 
-Stage 0 uses the `master_dataset_manifest.csv` directly:
+### Normalisation Recipe
 
 ```python
-import sys
-sys.path.append('/content/drive/MyDrive/SKANN_SSL')
+def preprocess(waveform):
+    # 1. DC Removal
+    x = waveform - np.mean(waveform)
+    
+    # 2. RMS Normalisation
+    rms = np.sqrt(np.mean(x ** 2)) + 1e-8
+    x = x / rms
+    
+    # 3. Reshape for CNN
+    return x.reshape(1, 1, -1).astype(np.float32)
+```
 
-from shared.config import get_colab_paths
-from stages.stage0_preprocessing import get_dataloaders, run_integration_test
+### What Remains After Normalisation?
 
-# Load data using manifest
-paths = get_colab_paths()
-train_loader, val_loader, test_loader = get_dataloaders(
-    manifest_path=paths['manifest'],
-    batch_size=32,
-    num_workers=0
+After RMS normalisation, amplitude differences between sea states are removed. What remains is **structural difference**:
+- **Vessel clips**: Periodic patterns (shaft harmonics, BPF)
+- **No-vessel clips**: Stochastic patterns (Knudsen-shaped, no periodicity)
+
+This structural difference is what Barlow Twins learns to separate.
+
+---
+
+## Source Code
+
+### Repository Structure
+
+```
+stages/stage_minus1/
+├── README.md                              # This file
+├── config.py                              # Central configuration
+├── sea_noise.py                           # Knudsen model implementation
+├── ship_noise.py                          # Vessel noise physics (V5)
+├── full_factorial_generator_v5.py         # V5 Colab/local generator
+├── generate_pairing_manifest_v3_2.py      # SSL pairing manifest
+├── generate_tensors.py                    # Tensor preprocessing
+├── infographic.py                         # Visualization utilities
+├── SKANN_SSL_V5_Dataset_Generator.ipynb   # Generation notebook (Colab)
+├── SKANN_SSL_V5_Dataset_Infographic.pdf   # Dataset visualization
+├── SKANN_SSL_V5_Dataset_Infographic.png   # Dataset visualization
+├── __init__.py                            # Package exports
+└── data/
+    ├── SS0CSV.txt                         # Knudsen curve data (Sea State 0)
+    ├── SS1CSV.txt                         # Knudsen curve data (Sea State 1)
+    ├── SS3CSV.txt                         # Knudsen curve data (Sea State 3)
+    ├── SS6CSV.txt                         # Knudsen curve data (Sea State 6)
+    └── knudsens_curve.svg                 # Source reference (WebPlotDigitizer)
+```
+
+### Generation (Colab)
+
+```python
+from generator_colab import ColabDatasetGenerator
+
+generator = ColabDatasetGenerator(
+    output_dir='/content/drive/MyDrive/SKANN_SSL_V5_Dataset',
+    reps=25,           # 9,600 vessel clips
+    no_vessel_reps=600 # 2,400 no-vessel clips
 )
 
-# Verify
-run_integration_test(train_loader, val_loader, test_loader)
+df = generator.generate(checkpoint_interval=500)
+```
 
-# Use in training
-for x, y in train_loader:
-    # x shape: [32, 1, 16000]
-    # y: vessel class labels (0-3)
-    z = encoder(x)  # Your SKANN encoder
+### Single Clip Generation (Development)
+
+```python
+from sea_noise import SeaNoiseGenerator
+from ship_noise import ShipNoiseGenerator
+import config
+
+# Sea noise only (no_vessel equivalent)
+sea_gen = SeaNoiseGenerator(fs=config.FS)
+sea_waveform = sea_gen.generate_frame(sea_state=3)
+
+# Ship noise
+ship_gen = ShipNoiseGenerator(fs=config.FS)
+ship_waveform, params = ship_gen.generate(vessel_class='tanker')
+
+print(f"Shaft rate: {params.shaft_rate:.2f} Hz")
+print(f"BPF: {params.blade_pass_freq:.2f} Hz")
 ```
 
 ---
 
-## Configuration (config.py)
+## Stage Boundary
 
-### Full-Factorial Design Parameters
+### Inputs
+- Knudsen curve data: `data/SS*CSV.txt`
+- Configuration: `config.py`
 
-```python
-SEA_STATES_DESIGN = [0, 1, 3, 6]
-VESSEL_CLASSES_DESIGN = ['small_craft', 'fishing_vessel', 'cargo_ship', 'tanker']
-N_BLADES_OPTIONS = [3, 4, 5]
-GEN_FREQ_OPTIONS = [0.0, 50.0]
-CAV_INTENSITY_LEVELS = [0.0, 0.3333, 0.6667, 1.0]
-FULL_FACTORIAL_REPS = 5
-```
+### Outputs (Stage 0 Interface)
+- Waveforms: `waveforms/clip_XXXXXX.npy`
+- Tensors: `tensors/tensor_XXXXXX.npy`
+- Manifest: `master_dataset_manifest.csv`
+- Pairing manifest: `pairing_manifest.csv` (for SSL training)
 
-### Signal Parameters
-
-```python
-FS = 16000              # Sampling frequency (Hz)
-DURATION = 1.0          # Clip duration (seconds)
-N_SAMPLES = 16000       # Samples per clip
-MIN_FREQ = 10.0         # Minimum frequency (Hz)
-MAX_FREQ = 8000         # Nyquist frequency (Hz)
-SHIP_SNR_DB = 6.0       # Target SNR
-P_REF = 1e-6            # Reference pressure (1 µPa)
-```
+### Consumers
+- **Stage 0**: Preprocessing & DataLoader
+- **Stage 3**: SSL training (via pairing manifest)
 
 ---
 
-## Physical Basis
+## Known Limitations
 
-### Knudsen Curves
-Sea noise model based on Knudsen et al. (1948), digitized using WebPlotDigitizer and fitted with piecewise log-linear models. The turbulence band (below ~38 Hz) uses a flat plateau at the LF-turbulence intersection.
+1. **Doppler not implemented**: Doppler-induced frequency shifts were deprioritised. Can be added as post-processing if needed.
 
-### Ship Signatures
-- **Tonal components**: Ross (1976), Urick (1983)
-- **Blade pass frequency**: BPF = shaft_rate × n_blades
-- **Cavitation**: Physical burst model based on Brennen (1995), Rayleigh collapse time
+2. **Single-source model**: Each clip contains one vessel. Multi-source scenarios require extension.
 
-### References
-- Knudsen, V.O., et al. (1948). "Underwater ambient noise." J. Marine Research.
+3. **Stationary statistics**: Each clip has fixed parameters. Time-varying (e.g., CPA approach) not modeled.
+
+4. **No propagation effects**: Multipath, surface/bottom reflection, and range-dependent attenuation not included.
+
+5. **Synthetic only**: Real-world datasets (NOAA, MBARI, JAMSTEC, DCLDE) should be integrated for final validation.
+
+---
+
+## References
+
+- Knudsen, V. O., et al. (1948). "Underwater Ambient Noise." Journal of Marine Research.
 - Ross, D. (1976). "Mechanics of Underwater Noise." Pergamon Press.
-- Urick, R.J. (1983). "Principles of Underwater Sound." McGraw-Hill.
-- Brennen, C.E. (1995). "Cavitation and Bubble Dynamics." Oxford.
+- Urick, R. J. (1983). "Principles of Underwater Sound." McGraw-Hill.
 
 ---
 
-## Project Structure
+## Version
 
-```
-SKANN_SSL/
-├── README.md                              # Project overview
-│
-├── data/
-│   ├── README.md
-│   └── prototype_dataset/
-│       ├── master_dataset_manifest.csv    # Authoritative source (26 cols)
-│       ├── waveforms/
-│       │   ├── clip_000000.npy
-│       │   └── ... (1920 files)
-│       └── tensors/
-│           ├── tensor_000000.npy
-│           └── ... (1920 files)
-│
-├── stages/
-│   ├── stage_minus1/                      # ← This module
-│   │   ├── README.md                      # This file
-│   │   ├── __init__.py
-│   │   ├── config.py
-│   │   ├── sea_noise.py
-│   │   ├── ship_noise.py
-│   │   ├── generator.py
-│   │   ├── full_factorial_generator.py
-│   │   ├── infographic.py
-│   │   └── data/
-│   │       ├── SS0CSV.txt
-│   │       ├── SS1CSV.txt
-│   │       ├── SS3CSV.txt
-│   │       └── SS6CSV.txt
-│   │
-│   ├── stage0_preprocessing/              # DataLoader, splits
-│   ├── stage1_skconv1d/                   # Learned filterbank
-│   ├── stage2_encoder/                    # 2D encoder
-│   ├── stage3_ssl/                        # Barlow Twins
-│   ├── stage4_augmentation/               # Augmentation engine
-│   └── stage5_training/                   # Training loop
-│
-├── shared/
-│   ├── config.py                          # Global constants
-│   └── utils.py                           # Common utilities
-│
-├── notebooks/
-│   └── SKANN_SSL_Stage_Minus1.ipynb
-│
-├── checkpoints/
-└── outputs/
-```
-
----
-
-## Version History
-
-- **v0.3.1** (December 17, 2025): Project restructure
-  - Moved to `stages/stage_minus1/`
-  - Added `tensor_path` and `waveform_path` columns to manifest
-  - Renamed `metadata.csv` → `master_dataset_manifest.csv`
-  - Integration with Stage 0 DataLoader
-
-- **v0.3.0** (December 16, 2025): Full-factorial structured dataset
-  - New `full_factorial_generator.py` for systematic coverage
-  - 1920 clips covering all design factor combinations
-  - Extended `VesselParams` dataclass with tracking fields
-  - Metadata now captures all randomized components
-
-- **v0.2.0** (December 14, 2025): Critical bug fixes and enhancements
-  - Fixed IFFT scaling (× N / √2) for correct physical units (Pa)
-  - Fixed Zone A plateau: flat at NL(f_t) from LF regression
-  - Physical cavitation burst model (200 kHz generation)
-  - 10 Hz minimum frequency constraint
-  - Verified: Sea 97.3 dB, Ship 103.3 dB, SNR 6.0 dB ✓
-
-- **v0.1.0** (2024): Initial prototype implementation
-
----
-
-## Status
-
-| Task | Status |
-|------|--------|
-| Sea noise model (Knudsen) | ✅ Complete |
-| Ship noise model (tonal + broadband) | ✅ Complete |
-| Cavitation burst model | ✅ Complete |
-| Full-factorial generator | ✅ Complete |
-| 1920-clip dataset | ✅ Generated |
-| Tensor preprocessing | ✅ Complete |
-| Master manifest with paths | ✅ Complete |
-| Stage 0 integration | ✅ Complete |
-| Stage 1 SKConv1D | ⏳ Next |
-
----
-
-## Dependencies
-
-```
-numpy>=1.20
-pandas>=1.3
-scipy>=1.7
-matplotlib>=3.4
-```
-
----
-
-## Next Stage
-
-**→ Stage 0: Preprocessing** — DataLoader, stratified splits, transforms
-
-```python
-from stages.stage0_preprocessing import get_dataloaders
-```
+- **Document version**: 5.0.1
+- **Dataset version**: V5.0.0
+- **Date**: February 2026

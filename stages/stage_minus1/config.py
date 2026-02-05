@@ -15,8 +15,8 @@ import numpy as np
 # =============================================================================
 FS = 16000              # Sampling frequency (Hz) - Prototype
 FS_FULL = 32000         # Sampling frequency (Hz) - Full system
-DURATION = 1.0          # Clip duration (seconds)
-N_SAMPLES = int(FS * DURATION)  # Samples per clip (16000)
+DURATION = 5.0          # Clip duration (seconds)
+N_SAMPLES = int(FS * DURATION)  # Samples per clip (80000 for 5s @ 16kHz)
 
 # FFT parameters
 FFT_SIZE = N_SAMPLES    # FFT size matches clip length for Δf = 1 Hz
@@ -149,6 +149,13 @@ DATA_DIR = './data'
 WAVEFORM_DIR = f'{DATA_DIR}/waveforms'
 TENSOR_DIR = f'{DATA_DIR}/tensors'
 METADATA_FILE = f'{DATA_DIR}/metadata.csv'
+
+# =============================================================================
+# V3.0.0: NO-VESSEL CLASS PARAMETERS
+# =============================================================================
+NO_VESSEL_CLASS_NAME = 'no_vessel'
+NO_VESSEL_REPS_PER_SEA_STATE = 120  # 120 × 4 sea states = 480 clips (matches vessel class count)
+NO_VESSEL_START_CLIP_ID = 1920     # Continue numbering after vessel clips
 
 # =============================================================================
 # FULL-FACTORIAL DESIGN PARAMETERS (Structured Dataset)

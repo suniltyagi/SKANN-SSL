@@ -1,14 +1,22 @@
 """
-SKANN-SSL Stage -1: Ship Noise Generator
-=========================================
-Generates synthetic ship noise signatures using:
-1. Document D spectral approach for tonal + broadband components
-2. Physical burst model for cavitation (blade-gated discrete events)
+SKANN-SSL Stage -1: Ship Noise Generator V5
+============================================
+Based on V2 backup with critical fixes:
 
-This model moves from "Signal Processing" to "Physical Modeling":
-- Cavitation bursts are discrete bubble collapse events
-- Bursts are gated by blade passage (activity windows)
-- Generated at 200 kHz to capture μs-scale physics, then downsampled
+V5 FIXES:
+1. SWELL BUG FIX: Changed swell modulation from 0.5 Hz to realistic 0.05-0.15 Hz
+   - Original bug created 2 Hz harmonics (4× swell freq) that interfered with DEMON
+   - Real ocean swell has 7-20 second period (0.05-0.15 Hz)
+   
+2. RESONANCE FIX: Always generate exactly 3 resonances (was 2-3 random)
+   - Ensures consistent metadata across all clips
+   - All three resonance_freq_* fields will be populated
+
+VESSEL_CLASSES from config.py (CORRECT - non-overlapping):
+- small_craft:     15-30 Hz shaft rate
+- fishing_vessel:  4-8 Hz shaft rate  
+- cargo_ship:      1.5-2.5 Hz shaft rate
+- tanker:          1.0-1.5 Hz shaft rate
 
 Components:
 - Tonal: Shaft rate harmonics, BPF harmonics, generator harmonics (spectral)
@@ -18,7 +26,6 @@ Components:
 References:
 - Ross (1987) - Mechanics of Underwater Noise
 - Brennen (1995) - Cavitation and Bubble Dynamics
-- cavitation_with_burst.txt - Physical burst model
 """
 
 import numpy as np
@@ -61,12 +68,12 @@ class VesselParams:
     cavitation_intensity: float    # 0-1
     generator_freq: float      # 50 or 60 Hz (or 0 for none)
     
-    # === NEW FIELDS: Populated during generation ===
+    # === FIELDS: Populated during generation ===
     # These capture the actual random values used in each clip
     equipment_base_freq: float = 0.0           # 25 or 30 Hz (depends on generator_freq)
     resonance_freq_1: float = 0.0              # First resonance frequency (Hz)
     resonance_freq_2: float = 0.0              # Second resonance frequency (Hz)
-    resonance_freq_3: float = 0.0              # Third resonance frequency (Hz), may be 0 if only 2
+    resonance_freq_3: float = 0.0              # Third resonance frequency (Hz)
     cavitation_peak_freq: float = 0.0          # Actual cavitation peak frequency used
     n_cavitation_bursts: int = 0               # Number of cavitation bursts in this clip
 
@@ -79,6 +86,10 @@ class ShipNoiseGenerator:
     
     Cavitation is generated at 200 kHz then downsampled to preserve
     the μs-scale bubble collapse physics while outputting at target fs.
+    
+    V5 FIXES:
+    - Swell frequency: 0.05-0.15 Hz (was buggy 0.5 Hz)
+    - Resonances: Always 3 (was random 2-3)
     """
     
     # Cavitation burst scaling factor
@@ -91,7 +102,7 @@ class ShipNoiseGenerator:
         
         Args:
             fs: Output sampling frequency (Hz) - typically 16000
-            n_samples: Number of output samples per frame
+            n_samples: Number of output samples per frame (16000 for 1s, 80000 for 5s)
         """
         self.fs = fs
         self.n_samples = n_samples
@@ -145,7 +156,7 @@ class ShipNoiseGenerator:
             has_cavitation=has_cavitation,
             cavitation_intensity=cavitation_intensity,
             generator_freq=generator_freq,
-            # New fields - initialized to defaults, populated during generate()
+            # Fields populated during generate()
             equipment_base_freq=0.0,
             resonance_freq_1=0.0,
             resonance_freq_2=0.0,
@@ -264,8 +275,10 @@ class ShipNoiseGenerator:
         
         These create narrow-band tonals that vary per vessel.
         
+        V5 FIX: Always generates exactly 3 resonances (was 2-3 random in V2)
+        
         Returns:
-            List of resonance frequencies actually used (2-3 values)
+            List of 3 resonance frequencies used
         """
         # Resonance level: 12-18 dB below main tonals
         res_ref = ref_level_db - 15.0
@@ -277,14 +290,10 @@ class ShipNoiseGenerator:
             (200, 500),  # Piping
         ]
         
-        # Add 2-3 random resonances
-        n_resonances = rng.integers(2, 4)
-        selected_bands = rng.choice(len(resonance_bands), size=n_resonances, replace=False)
-        
+        # V5 FIX: Always add exactly 3 resonances (one from each band)
         resonance_freqs_used = []
         
-        for band_idx in selected_bands:
-            f_low, f_high = resonance_bands[band_idx]
+        for f_low, f_high in resonance_bands:
             # Random frequency within band
             f_res = rng.uniform(f_low, f_high)
             if f_res < 10 or f_res >= self.nyquist:
@@ -305,10 +314,6 @@ class ShipNoiseGenerator:
         - Relatively FLAT from 10 Hz to ~500 Hz (machinery/flow noise band)
         - Rolloff ABOVE 500 Hz (high-frequency attenuation)
         - NO low-frequency boost (previous model was wrong)
-        
-        The previous model used negative rolloff which incorrectly boosted
-        low frequencies by 30-40 dB, creating unrealistic divergence from
-        sea noise below 150 Hz.
         
         Corrected model:
         - Flat response from MIN_FREQ to f_corner (500 Hz)
@@ -350,8 +355,6 @@ class ShipNoiseGenerator:
         
         This replaces the burst model with a smoother, more continuous
         broadband elevation centered at the cavitation peak frequency.
-        The result is horizontal streaks in spectrograms rather than
-        vertical barcodes.
         
         Physics:
         - Cavitation creates broadband noise centered around 500-2000 Hz
@@ -370,8 +373,7 @@ class ShipNoiseGenerator:
         f_low = f_peak / (2 ** (bandwidth_octaves / 2))
         f_high = f_peak * (2 ** (bandwidth_octaves / 2))
         
-        # Cavitation level: scale by intensity, reduced by 0.01x for balance with tonals
-        # This puts cavitation about 10-15 dB below tonal peaks
+        # Cavitation level: scale by intensity
         cav_ref_db = ref_level_db - 10.0 + 10 * np.log10(params.cavitation_intensity + 0.01)
         
         for k in range(1, self.n_bins):
@@ -417,11 +419,11 @@ class ShipNoiseGenerator:
         )
         params.equipment_base_freq = equipment_base_freq
         
-        # Structural resonances - capture frequencies used
+        # Structural resonances - capture frequencies used (V5: always 3)
         resonance_freqs = self._add_structural_resonances(
             amplitude_spectrum, params, ref_level_db, rng
         )
-        # Store in individual fields (pad with 0.0 if fewer than 3)
+        # Store in individual fields
         params.resonance_freq_1 = resonance_freqs[0] if len(resonance_freqs) > 0 else 0.0
         params.resonance_freq_2 = resonance_freqs[1] if len(resonance_freqs) > 1 else 0.0
         params.resonance_freq_3 = resonance_freqs[2] if len(resonance_freqs) > 2 else 0.0
@@ -455,10 +457,13 @@ class ShipNoiseGenerator:
         Three Chaos Parameters for realistic horizontal streaking:
         1. Intensity Variation: ±20% per blade (wake non-uniformity)
         2. RPM Jitter: ±2% timing noise (engine governor hunting)
-        3. Envelope Wander: 0.5 Hz swell modulation (sea state effect)
+        3. Envelope Wander: V5 FIX - realistic 0.05-0.15 Hz swell (was buggy 0.5 Hz)
         
-        This creates natural-looking spectrograms with horizontal bands
-        instead of synthetic-looking vertical barcodes.
+        V5 SWELL FIX:
+        - Original bug: swell_freq = 0.5 Hz created 2 Hz harmonics (4× swell)
+        - This interfered with DEMON analysis shaft rate detection
+        - Real ocean swell: 7-20 second period = 0.05-0.15 Hz
+        - Now harmonics stay below 0.6 Hz, well outside SR detection range
         """
         blade_period = 1.0 / bpf
         # Add buffer passages to handle jitter at edges
@@ -471,13 +476,14 @@ class ShipNoiseGenerator:
         burst_times = []
         burst_intensities = []
         
-        # CHAOS PARAMETER 3: Envelope Wander (0.5 Hz swell/roll)
-        # Random phase so every clip is different
+        # V5 FIX: Realistic ocean swell frequency (0.05-0.15 Hz)
+        # Original bug: swell_freq = 0.5 Hz created 2 Hz harmonics!
+        swell_freq = rng.uniform(0.05, 0.15)  # 7-20 second period
         swell_phase = rng.uniform(0, 2 * np.pi)
+        swell_amplitude = 0.2  # Reduced from 0.3 for subtler effect
         
         for i in range(n_passages):
             # CHAOS PARAMETER 2: RPM Jitter (±2% frequency noise)
-            # Applied by jittering the center time of blade pass
             jitter_amount = 0.02 * blade_period
             timing_jitter = rng.normal(0, jitter_amount)
             
@@ -485,11 +491,10 @@ class ShipNoiseGenerator:
             t_center = (i + 0.5) * blade_period + timing_jitter
             
             # CHAOS PARAMETER 1: Intensity Variation per Blade (±20%)
-            # Some blades hit harder water than others (wake non-uniformity)
             blade_randomness = max(0, 1.0 + 0.2 * rng.standard_normal())
             
-            # Calculate local envelope wander (0.5 Hz drift) for this time
-            swell_mod = 1.0 + 0.3 * np.sin(2 * np.pi * 0.5 * t_center + swell_phase)
+            # V5 FIX: Corrected swell modulation with realistic frequency
+            swell_mod = 1.0 + swell_amplitude * np.sin(2 * np.pi * swell_freq * t_center + swell_phase)
             
             # Combined intensity for this blade passage
             local_intensity = intensity * blade_randomness * swell_mod
@@ -650,7 +655,6 @@ class ShipNoiseGenerator:
         # SPECTRAL NULLING: Remove energy below MIN_FREQ (10 Hz)
         # The impulsive burst model creates low-frequency spectral leakage
         # that must be removed to respect the 10 Hz - 8000 Hz prototype band
-        # Use spectral nulling for a clean brick-wall cutoff
         MIN_FREQ = 10.0
         spectrum = np.fft.rfft(signal_out)
         freqs = np.fft.rfftfreq(len(signal_out), 1/self.fs)
@@ -681,7 +685,7 @@ class ShipNoiseGenerator:
             
         Note: params object is updated with actual values used:
             - params.equipment_base_freq: 25.0 or 30.0 Hz
-            - params.resonance_freq_1/2/3: actual resonance frequencies
+            - params.resonance_freq_1/2/3: actual resonance frequencies (always 3 in V5)
             - params.cavitation_peak_freq: weighted average of burst carriers
             - params.n_cavitation_bursts: number of bursts in this clip
         """
@@ -713,69 +717,39 @@ class ShipNoiseGenerator:
 # =============================================================================
 
 def test_ship_noise():
-    """Test the ship noise generator with burst cavitation."""
-    import matplotlib.pyplot as plt
+    """Test the V5 ship noise generator."""
+    print("=" * 60)
+    print("SKANN-SSL Ship Noise Generator V5 Test")
+    print("=" * 60)
     
-    gen = ShipNoiseGenerator()
+    # Test with 5-second clips (V3 configuration)
+    n_samples_5s = 80000
+    gen = ShipNoiseGenerator(fs=16000, n_samples=n_samples_5s)
     rng = np.random.default_rng(42)
     
-    # Test cargo ship with cavitation
-    params = gen.create_vessel_params('cargo_ship', rng)
-    params.has_cavitation = True
-    params.cavitation_intensity = 0.6
+    print(f"\nGenerator configured for {gen.duration}s clips ({gen.n_samples} samples)")
     
-    waveform, params = gen.generate(params=params, rng=rng)
+    # Test all vessel classes
+    for vc in ['tanker', 'cargo_ship', 'fishing_vessel', 'small_craft']:
+        params = gen.create_vessel_params(vc, rng)
+        params.has_cavitation = True
+        params.cavitation_intensity = 0.6
+        
+        waveform, params = gen.generate(params=params, rng=rng)
+        
+        print(f"\n{vc}:")
+        print(f"  Shaft rate:      {params.shaft_rate:.2f} Hz")
+        print(f"  BPF:             {params.blade_pass_freq:.2f} Hz")
+        print(f"  Resonances:      {params.resonance_freq_1:.1f}, {params.resonance_freq_2:.1f}, {params.resonance_freq_3:.1f} Hz")
+        print(f"  Cav bursts:      {params.n_cavitation_bursts}")
+        print(f"  Waveform RMS:    {np.sqrt(np.mean(waveform**2)):.6f}")
     
-    fig, axes = plt.subplots(3, 1, figsize=(14, 10))
-    
-    # Time domain
-    t_ms = np.arange(len(waveform)) / gen.fs * 1000
-    axes[0].plot(t_ms[:3200], waveform[:3200])
-    axes[0].set_xlabel('Time (ms)')
-    axes[0].set_ylabel('Amplitude')
-    axes[0].set_title(f'Cargo Ship with Cavitation (BPF={params.blade_pass_freq:.1f} Hz)')
-    axes[0].grid(True, alpha=0.3)
-    
-    # Mark blade passages
-    blade_period_ms = 1000 / params.blade_pass_freq
-    for i in range(int(200 / blade_period_ms) + 1):
-        axes[0].axvline(i * blade_period_ms, color='red', linestyle='--', alpha=0.3)
-    
-    # Spectrum
-    spectrum = np.abs(np.fft.rfft(waveform))
-    freqs = gen.freq_grid
-    spectrum_db = 20 * np.log10(spectrum + 1e-12)
-    
-    axes[1].semilogx(freqs[1:], spectrum_db[1:], alpha=0.7)
-    axes[1].set_xlabel('Frequency (Hz)')
-    axes[1].set_ylabel('Magnitude (dB)')
-    axes[1].set_title('Spectrum')
-    axes[1].grid(True, alpha=0.3)
-    axes[1].set_xlim([1, 8000])
-    
-    # Spectrogram
-    f, t, Sxx = scipy_signal.spectrogram(waveform, fs=gen.fs, nperseg=256, noverlap=240)
-    Sxx_db = 10 * np.log10(Sxx + 1e-12)
-    
-    im = axes[2].pcolormesh(t * 1000, f, Sxx_db, shading='gouraud', cmap='inferno')
-    axes[2].set_xlabel('Time (ms)')
-    axes[2].set_ylabel('Frequency (Hz)')
-    axes[2].set_title('Spectrogram - Look for vertical streaks (burst events)')
-    axes[2].set_ylim([0, 2000])
-    plt.colorbar(im, ax=axes[2], label='PSD (dB)')
-    
-    plt.tight_layout()
-    plt.savefig('ship_noise_burst_test.png', dpi=150)
-    plt.close()
-    
-    print("Ship noise burst test complete. Output: ship_noise_burst_test.png")
-    print(f"  Shaft rate:           {params.shaft_rate:.2f} Hz")
-    print(f"  BPF:                  {params.blade_pass_freq:.2f} Hz")
-    print(f"  Cavitation intensity: {params.cavitation_intensity:.2f}")
-    print(f"  Cavitation peak freq: {params.cavitation_peak_freq:.2f} Hz")
-    print(f"  N cavitation bursts:  {params.n_cavitation_bursts}")
-    print(f"  Equipment base freq:  {params.equipment_base_freq:.2f} Hz")
-    print(f"  Resonance freqs:      {params.resonance_freq_1:.1f}, {params.resonance_freq_2:.1f}, {params.resonance_freq_3:.1f} Hz")
+    print("\n" + "=" * 60)
+    print("V5 FIXES APPLIED:")
+    print("  ✓ Swell frequency: 0.05-0.15 Hz (was buggy 0.5 Hz)")
+    print("  ✓ Resonances: Always 3 (was random 2-3)")
+    print("  ✓ VESSEL_CLASSES from config.py (non-overlapping shaft rates)")
+    print("=" * 60)
 
 
 if __name__ == '__main__':

@@ -1,0 +1,135 @@
+graph TB
+    Title["<b>SKANN-SSL Stage -1: V5 Prototype Dataset Infographic</b><br/>Synthetic Underwater Acoustic Waveforms for Self-Supervised Learning"]
+    
+    Title --> Charts
+    Title --> Technical
+    
+    subgraph Charts["DATASET DISTRIBUTION CHARTS"]
+        direction TB
+        
+        subgraph SeaStates["Sea States {0, 1, 3, 6}"]
+            SS0["State 0<br/>3,000 clips"]
+            SS1["State 1<br/>3,000 clips"]
+            SS3["State 3<br/>3,000 clips"]
+            SS6["State 6<br/>3,000 clips"]
+        end
+        
+        subgraph VesselClasses["Vessel Classes"]
+            VC1["Tanker<br/>2,400 clips"]
+            VC2["Cargo Ship<br/>2,400 clips"]
+            VC3["Fishing Vessel<br/>2,400 clips"]
+            VC4["Small Craft<br/>2,400 clips"]
+            VC5["No Vessel<br/>2,400 clips"]
+        end
+        
+        subgraph BladeCounts["Blade Counts {3, 4, 5}"]
+            BC3["3 Blades<br/>3,200 clips"]
+            BC4["4 Blades<br/>3,200 clips"]
+            BC5["5 Blades<br/>3,200 clips"]
+        end
+        
+        subgraph GeneratorFreq["Generator Frequency"]
+            GF0["0 Hz (None)<br/>4,800 clips"]
+            GF50["50 Hz<br/>4,800 clips"]
+        end
+        
+        subgraph Cavitation["Cavitation Intensity"]
+            CV0["0.0 (Off)<br/>2,400 clips"]
+            CV1["0.333 (Low)<br/>2,400 clips"]
+            CV2["0.667 (Med)<br/>2,400 clips"]
+            CV3["1.0 (High)<br/>2,400 clips"]
+        end
+    end
+    
+    subgraph Technical["TECHNICAL DETAILS"]
+        direction TB
+        
+        subgraph ShaftRates["V5 CRITICAL FIX: Non-Overlapping Shaft Rate Ranges"]
+            SR1["Tanker (60-90 RPM): 1.00 - 1.50 Hz"]
+            SR2["Cargo Ship (90-150 RPM): 1.50 - 2.50 Hz"]
+            SR3["Fishing Vessel (240-480 RPM): 4.00 - 8.00 Hz"]
+            SR4["Small Craft (900-1800 RPM): 15.01 - 30.00 Hz"]
+            SR1 -->|"Gap: 0 Hz"| SR2
+            SR2 -->|"Gap: 1.5 Hz"| SR3
+            SR3 -->|"Gap: 7.0 Hz"| SR4
+        end
+        
+        subgraph BPF["Blade Pass Frequency by Vessel Class"]
+            BPF1["Tanker: ~3-7 Hz"]
+            BPF2["Cargo Ship: ~5-12 Hz"]
+            BPF3["Fishing Vessel: ~12-40 Hz"]
+            BPF4["Small Craft: ~45-150 Hz"]
+        end
+        
+        subgraph Knudsen["Knudsen Sea Noise Spectra"]
+            KN["Frequency: 10¹ - 10³ Hz<br/>Noise Level: 20-80 dB re 1 µPa²/Hz<br/>Sea State 0 → Sea State 6 (increasing)"]
+        end
+        
+        subgraph Examples["Example Spectrograms"]
+            EX1["Tanker<br/>Shaft=1.2 Hz, BPF=6.0 Hz"]
+            EX2["Cargo Ship<br/>Shaft=2.0 Hz, BPF=8.0 Hz"]
+            EX3["Small Craft<br/>Shaft=20.0 Hz, BPF=60.0 Hz"]
+        end
+    end
+    
+    Title --> Summary
+    
+    subgraph Summary["SKANN-SSL STAGE -1: V5 FULL-FACTORIAL DATASET SUMMARY"]
+        direction LR
+        
+        subgraph DesignFactors["DESIGN FACTORS<br/>(Controlled Variables)"]
+            DF1["Sea States: {0, 1, 3, 6} → 4"]
+            DF2["Vessel Classes: {tanker, cargo, fishing, small} → 4"]
+            DF3["No-Vessel Class: {ambient only} → 1"]
+            DF4["Blade Counts: {3, 4, 5} → 3"]
+            DF5["Generator Freq: {0, 50} Hz → 2"]
+            DF6["Cavitation Level: {0.0, 0.33, 0.67, 1.0} → 4"]
+            DF7["Repetitions: 25 per combination → 25"]
+        end
+        
+        subgraph AcousticComponents["ACOUSTIC COMPONENTS<br/>(Generated)"]
+            AC1["Shaft Rate Harmonics (vessel-class range)"]
+            AC2["Blade Pass Frequency (BPF) = Shaft × n_blades"]
+            AC3["Generator Harmonics (50 Hz base + harmonics)"]
+            AC4["Equipment Running Frequency (25/30 Hz + harmonics)"]
+            AC5["Structural Resonances<br/>hull: 50-150 Hz<br/>foundation: 100-300 Hz<br/>piping: 200-500 Hz"]
+            AC6["Cavitation Bursts (200 kHz physical model,<br/>blade-gated, swell modulated)"]
+            AC7["Broadband Flow Noise (flat to 500 Hz, then rolloff)"]
+        end
+        
+        subgraph DatasetFormula["DATASET FORMULA"]
+            FORM1["Vessel: 4 × 4 × 3 × 2 × 4 × 25 = 9,600 clips"]
+            FORM2["No-Vessel: 4 × 600 = 2,400 clips"]
+            FORM3["<b>TOTAL: 12,000 clips</b>"]
+        end
+        
+        subgraph V5Fixes["V5 CRITICAL FIXES"]
+            FIX1["✓ Non-overlapping shaft rate ranges"]
+            FIX2["✓ Exactly 3 resonances per clip"]
+            FIX3["✓ Swell frequency: 0.05-0.15 Hz (realistic)"]
+        end
+        
+        subgraph OutputFiles["OUTPUT FILES"]
+            OF1["Waveforms: clip_XXXXXX.npy (Pa, float32)"]
+            OF2["Tensors: tensor_XXXXXX.npy (normalized, [1,1,80000])"]
+            OF3["Metadata: master_dataset_manifest.csv (27 columns)"]
+            OF4["Pairing: pairing_manifest.csv (SSL training)"]
+        end
+        
+        subgraph Statistics["STATISTICS"]
+            ST1["SNR: 6.0 ± 0.0 dB (target: 6.0 dB)"]
+            ST2["BPF Range: 3.0 - 150.0 Hz"]
+            ST3["Cavitation: 75.0% of clips (intensity > 0)"]
+            ST4["Frequency Band: 10 Hz - 8000 Hz (prototype)"]
+            ST5["Duration: 5.0 seconds (80,000 samples @ 16 kHz)"]
+        end
+    end
+    
+    style Title fill:#1a5276,stroke:#1a5276,color:#fff
+    style SeaStates fill:#e74c3c,stroke:#c0392b,color:#fff
+    style VesselClasses fill:#3498db,stroke:#2980b9,color:#fff
+    style BladeCounts fill:#f39c12,stroke:#d68910,color:#fff
+    style GeneratorFreq fill:#9b59b6,stroke:#8e44ad,color:#fff
+    style Cavitation fill:#1abc9c,stroke:#16a085,color:#fff
+    style ShaftRates fill:#ecf0f1,stroke:#bdc3c7
+    style Summary fill:#f8f9fa,stroke:#2c3e50

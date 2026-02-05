@@ -1,154 +1,131 @@
-
 # SKANN-SSL Data Directory
 
-## Prototype Dataset
+## V5 Dataset (Current)
 
-Synthetic underwater acoustic waveforms generated in Stage -1.
+Synthetic underwater acoustic waveforms for vessel detection and classification using self-supervised learning.
+
+**Version:** V5.0.0 | **Clips:** 12,000 | **Duration:** 5.0s | **Sample Rate:** 16 kHz
 
 ---
-## Structure
 
-```text
-data/prototype_dataset/
-├── master_dataset_manifest.csv   # Authoritative source (26 columns)
-├── pairing_manifest.csv          # Prescribed pairs for Stage 3 SSL
-├── metadata.csv                  # Extended metadata definitions
-├── dataset_infographic.png       # Visual summary of dataset stats
-├── waveforms/                    # Raw waveforms
-│   ├── clip_000000.npy           # Pa, float32, shape (16000,)
-│   └── ... (1920 files)
-└── tensors/                      # Preprocessed tensors
-    ├── tensor_000000.npy         # Normalized, shape (1, 1, 16000)
-    └── ... (1920 files)
+## Quick Links
 
+| Resource | Link |
+|----------|------|
+| **Full Documentation** | [Underwater-Acoustic-Synthetic-Dataset (GitHub)](https://github.com/suniltyagialtair/Underwater-Acoustic-Synthetic-Dataset) |
+| **Download (Google Drive)** | [SKANN_SSL_V5_Dataset](https://drive.google.com/drive/folders/1E6vhPnkY8x8YzZ3a-k6PnL_G9gnq5gBo) |
+| **Generator Code** | [stages/stage_minus1/](../stages/stage_minus1/) |
+
+> **Note:** For complete dataset documentation including physics background, manifest schema, PyTorch DataLoader examples, and citation info, see the [public GitHub repository](https://github.com/suniltyagialtair/Underwater-Acoustic-Synthetic-Dataset).
+
+---
+
+## Directory Structure
+
+```
+data/
+├── README.md                              # This file
+├── infographic.py                         # Visualization generator script
+├── SKANN_SSL_V5_Dataset_Infographic.pdf   # Visual summary (vector)
+├── SKANN_SSL_V5_Dataset_Infographic.mermaid # Editable diagram source
+└── v5_dataset/                            # Dataset (clone or download)
+    ├── master_dataset_manifest.csv        # 27-column metadata
+    ├── pairing_manifest.csv               # SSL training pairs
+    ├── waveforms/                         # Raw audio (Pa, float32)
+    │   └── clip_XXXXXX.npy (12,000 files)
+    └── tensors/                           # Normalised (1,1,80000)
+        └── tensor_XXXXXX.npy (12,000 files)
 ```
 
 ---
 
-## Master Manifest
+## Generated Infographics
 
-The `master_dataset_manifest.csv` is the **single source of truth** for the dataset.
+Run `infographic.py` to generate visualization charts:
 
-### Columns (26)
+```bash
+cd data/
+python infographic.py --all
+```
 
-| Category | Columns |
-| --- | --- |
-| **Identifiers** | `clip_id`, `repeat_index` |
-| **Design Factors** | `sea_state`, `vessel_class`, `n_blades`, `generator_freq`, `cavitation_intensity` |
-| **Propulsion** | `shaft_rate`, `blade_pass_freq` |
-| **Cavitation** | `has_cavitation`, `cavitation_peak_freq`, `n_cavitation_bursts` |
-| **Equipment** | `equipment_base_freq`, `resonance_freq_1`, `resonance_freq_2`, `resonance_freq_3` |
-| **Measurements** | `sea_rms_pa`, `ship_rms_pa`, `combined_rms_pa`, `scale_factor` |
-| **SPL (dB)** | `sea_spl_db`, `ship_spl_db`, `combined_spl_db`, `snr_db` |
-| **Paths** | `tensor_path`, `waveform_path` |
+| Output | Description |
+|--------|-------------|
+| `spectrogram_infographic.png` | 4×2 grid: all vessel classes with/without cavitation |
+| `vessel_comparison.png` | V5 shaft rate and BPF range comparison |
+| `dataset_distribution.png` | Pie/bar charts of class and factor distributions |
 
 ---
 
-## Pairing Manifest (Stage 3 SSL)
+## Dataset Summary
 
-The `pairing_manifest.csv` is used specifically for **Stage 3: Self-Supervised Representation Learning (Barlow Twins)**.
+| Class | Clips | Shaft Rate (Hz) | RPM |
+|-------|-------|-----------------|-----|
+| tanker | 2,400 | 1.0 – 1.5 | 60–90 |
+| cargo_ship | 2,400 | 1.5 – 2.5 | 90–150 |
+| fishing_vessel | 2,400 | 4.0 – 8.0 | 240–480 |
+| small_craft | 2,400 | 15.0 – 30.0 | 900–1800 |
+| no_vessel | 2,400 | — | — |
+| **Total** | **12,000** | | |
 
-* **Purpose:** It pre-defines valid pairs (or indices) for training to ensure reproducibility and physics-consistent sampling.
-* **Usage:** The Stage 3 DataLoader reads this manifest to feed the Siamese encoder, ensuring that the augmentations or pairs used for the invariance objective are tracked and consistent.
-
----
-
-## Dataset Statistics
-
-| Property | Value |
-| --- | --- |
-| Total clips | 1,920 |
-| Duration | 1.0 second |
-| Sample rate | 16,000 Hz |
-| Frequency band | 10 Hz – 8,000 Hz |
-| SNR | 6.0 dB |
-| Format | float32 |
-
-**Rationale:** This prototype dataset is intentionally band-limited to ≤ 8 kHz (fs = 16 kHz) for rapid validation; no distinguishing features are expected above 8 kHz for this prototype.
-
-**Assumption:** Downstream models should expect data at a 16 kHz sampling frequency and should not expect information above 8 kHz for this dataset.
+**V5 Key Feature:** Non-overlapping shaft rate ranges ensure acoustic distinguishability.
 
 ---
 
 ## Full-Factorial Design
 
-```text
-4 sea states × 4 vessel classes × 3 blade counts × 
-2 generator freqs × 4 cavitation levels × 5 repeats = 1,920 clips
-
+```
+Vessel:    4 sea states × 4 classes × 3 blades × 2 gen × 4 cav × 25 reps = 9,600
+No-vessel: 4 sea states × 600 reps = 2,400
+Total:     12,000 clips
 ```
 
-### Factor Levels
-
-| Factor | Levels |
-| --- | --- |
-| Sea State | 0, 1, 3, 6 |
-| Vessel Class | cargo_ship, fishing_vessel, small_craft, tanker |
-| Blade Count | 3, 4, 5 |
-| Generator Freq | 0 Hz, 50 Hz |
-| Cavitation | 0.0, 0.333, 0.667, 1.0 |
-
 ---
 
-## Class Distribution
-
-| Vessel Class | Count |
-| --- | --- |
-| cargo_ship | 480 |
-| fishing_vessel | 480 |
-| small_craft | 480 |
-| tanker | 480 |
-
----
-
-## File Formats
-
-### Waveforms (`waveforms/clip_*.npy`)
-
-* Raw pressure values in Pascals (Pa)
-* Shape: `(16000,)`
-* dtype: `float32`
-
-### Tensors (`tensors/tensor_*.npy`)
-
-* DC removed, RMS normalized
-* Shape: `(1, 1, 16000)` → `[B, C, T]`
-* dtype: `float32`
-
----
-
-## Loading
-
-### Via DataLoader (Recommended)
-
-```python
-from stages.stage0_preprocessing import get_dataloaders
-
-# Load standard data
-train_loader, val_loader, test_loader = get_dataloaders(
-    manifest_path='data/prototype_dataset/master_dataset_manifest.csv'
-)
-
-```
-
-### Direct Load
+## Quick Start
 
 ```python
 import numpy as np
 import pandas as pd
 
-manifest = pd.read_csv('data/prototype_dataset/master_dataset_manifest.csv')
-tensor = np.load(manifest.loc[0, 'tensor_path'])
+# Load manifest
+manifest = pd.read_csv('data/v5_dataset/master_dataset_manifest.csv')
 
+# Load waveform (raw, Pascals)
+waveform = np.load('data/v5_dataset/waveforms/clip_000000.npy')
+print(f"Shape: {waveform.shape}")  # (80000,)
+
+# Load tensor (normalised, CNN-ready)
+tensor = np.load('data/v5_dataset/tensors/tensor_000000.npy')
+print(f"Shape: {tensor.shape}")  # (1, 1, 80000)
+
+# Filter by class
+tankers = manifest[manifest['vessel_class'] == 'tanker']
+print(f"Tanker clips: {len(tankers)}")  # 2400
 ```
 
 ---
 
-## Future Datasets
+## Obtaining the Dataset
 
-After prototype validation:
+### Option 1: Clone from GitHub
+```bash
+cd data/
+git clone https://github.com/suniltyagialtair/Underwater-Acoustic-Synthetic-Dataset.git v5_dataset
+```
 
-* NOAA NCEI Passive Acoustic Archives
-* MBARI Hydrophone Dataset
-* JAMSTEC Underwater Observatory
-* DCLDE Workshop Datasets
+### Option 2: Download from Google Drive
+1. Go to: https://drive.google.com/drive/folders/1E6vhPnkY8x8YzZ3a-k6PnL_G9gnq5gBo
+2. Download all files
+3. Extract to `data/v5_dataset/`
+
+---
+
+## License
+
+The V5 dataset is released under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
+---
+
+## References
+
+See the [public repository](https://github.com/suniltyagialtair/Underwater-Acoustic-Synthetic-Dataset#references) for full references and citation information.
