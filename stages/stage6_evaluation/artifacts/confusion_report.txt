@@ -1,0 +1,61 @@
+============================================================
+SKANN-SSL V3 CONFUSION ANALYSIS REPORT
+============================================================
+
+Overall Accuracy: 11995/12000 (100.0%)
+
+------------------------------------------------------------
+PER-CLASS PERFORMANCE
+------------------------------------------------------------
+
+CARGO_SHIP:
+  Recall (Sensitivity):  99.8%
+  Precision:             100.0%
+  Samples:               2400
+  Confused with:
+    → fishing_vessel: 4 (0.2%)
+
+FISHING_VESSEL:
+  Recall (Sensitivity):  100.0%
+  Precision:             99.8%
+  Samples:               2400
+  Confused with:
+    → small_craft: 1 (0.0%)
+
+NO_VESSEL:
+  Recall (Sensitivity):  100.0%
+  Precision:             100.0%
+  Samples:               2400
+
+SMALL_CRAFT:
+  Recall (Sensitivity):  100.0%
+  Precision:             100.0%
+  Samples:               2400
+
+TANKER:
+  Recall (Sensitivity):  100.0%
+  Precision:             100.0%
+  Samples:               2400
+
+------------------------------------------------------------
+TOP CONFUSION PAIRS
+------------------------------------------------------------
+
+cargo_ship → fishing_vessel: 4 errors (0.2%)
+
+fishing_vessel → small_craft: 1 errors (0.0%)
+
+------------------------------------------------------------
+MISCLASSIFICATION PATTERNS
+------------------------------------------------------------
+
+Errors by Sea State:
+  SS3: 2 errors
+  SS0: 1 errors
+  SS1: 1 errors
+  SS6: 1 errors
+
+Errors by Blade Count:
+  4 blades: 3 errors
+  5 blades: 1 errors
+  3 blades: 1 errors

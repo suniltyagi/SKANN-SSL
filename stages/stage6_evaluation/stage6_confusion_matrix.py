@@ -1,17 +1,18 @@
 """
-SKANN-SSL Confusion Matrix Generator
-=====================================
+SKANN-SSL Confusion Matrix Generator (V3/V5)
+=============================================
 Runs classification on entire dataset and generates confusion analysis.
 
 Usage:
-    python confusion_matrix_generator.py
+    cd SKANN-SSL
+    python stages/stage6_evaluation/stage6_confusion_matrix.py
 
 Requires:
-    - SKANN_SSL_Production_Bundle.joblib
-    - vessel_territories.joblib
-    - master_dataset_manifest.csv (or pairing_manifest.csv)
-    - tensors/ folder with all .npy files
-    - train_script.py (for HybridSKEncoder)
+    - SKANN_SSL_V3_Production_Bundle.joblib
+    - vessel_territories_v3.joblib
+    - data/v5_dataset/master_dataset_manifest.csv
+    - data/v5_dataset/tensors/ folder with all .npy files
+    - stages/stage3_ssl/train_script.py (for HybridSKEncoderV3)
 """
 
 import torch
@@ -22,46 +23,70 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 from collections import defaultdict
+import sys
 
-import sys, os
-
-ARTIFACTS_DIR = os.path.join(os.path.dirname(__file__), "artifacts")
+# ---------------------------------------------------------------------------
+# Path setup
+# ---------------------------------------------------------------------------
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
+ARTIFACTS_DIR = os.path.join(SCRIPT_DIR, "artifacts")
 os.makedirs(ARTIFACTS_DIR, exist_ok=True)
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "stage2_encoder")))
-from train_script import HybridSKEncoder
+# Import model from stage3_ssl
+sys.path.insert(0, os.path.join(REPO_ROOT, "stages", "stage3_ssl"))
+from train_script import HybridSKEncoderV3
 
-# Force script to look in its own directory
-#STAGE_DIR = Path(__file__).resolve().parent
-#REPO_ROOT = STAGE_DIR.parents[1]   # .../SKANN-SSL
+
+def norm_label(s: str) -> str:
+    """Normalize label string for consistent matching."""
+    return str(s).strip().lower().replace(" ", "_").replace("-", "_")
 
 
 class ConfusionAnalyzer:
     def __init__(self, bundle_path, territories_path):
-        print("🔧 Loading SKANN-SSL Assets...")
+        print("🔧 Loading SKANN-SSL V3 Assets...")
         self.bundle = joblib.load(bundle_path)
         self.territories = joblib.load(territories_path)
         self.labels = self.bundle["vessel_labels"]
         self.n_classes = len(self.labels)
         
+        # Build territory map (label -> centroid)
+        self.territory_map = {}
+        if "centroids" in self.territories:
+            cent_data = self.territories["centroids"]
+            if "vessel_labels" in self.territories:
+                for lab, vec in zip(self.territories["vessel_labels"], cent_data.values() if isinstance(cent_data, dict) else cent_data):
+                    self.territory_map[norm_label(lab)] = np.asarray(vec)
+            else:
+                for k, v in cent_data.items():
+                    self.territory_map[norm_label(k)] = np.asarray(v)
+        else:
+            # Direct mapping
+            for k, v in self.territories.items():
+                if not k.startswith('_'):
+                    self.territory_map[norm_label(k)] = np.asarray(v)
+        
+        print(f"   Territories loaded for: {list(self.territory_map.keys())}")
+        
         # Find manifest
         self.manifest = None
-        for name in [
-            "data/prototype_dataset/master_dataset_manifest.csv",
-            "data/prototype_dataset/pairing_manifest.csv",
-        ]:
-            if os.path.exists(name):
-                self.manifest = pd.read_csv(name)
-                print(f"📖 Loaded manifest: {name}")
+        manifest_paths = [
+            os.path.join(REPO_ROOT, "data", "v5_dataset", "master_dataset_manifest.csv"),
+            os.path.join(REPO_ROOT, "data", "v5_dataset", "pairing_manifest.csv"),
+        ]
+        for path in manifest_paths:
+            if os.path.exists(path):
+                self.manifest = pd.read_csv(path)
+                print(f"📖 Loaded manifest: {path} ({len(self.manifest)} rows)")
                 break
-
         
         if self.manifest is None:
             raise FileNotFoundError("No manifest found!")
         
         # Load model
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = HybridSKEncoder().to(self.device)
+        self.model = HybridSKEncoderV3(latent_dim=256).to(self.device)
         self.model.load_state_dict(self.bundle["model_state"])
         self.model.eval()
         print(f"✅ Model loaded on {self.device}")
@@ -69,42 +94,43 @@ class ConfusionAnalyzer:
         # Initialize confusion matrix
         self.confusion = np.zeros((self.n_classes, self.n_classes), dtype=int)
         self.label_to_idx = {label: i for i, label in enumerate(self.labels)}
-        self.misclassified = []  # Store details of errors
+        self.misclassified = []
 
     def classify_single(self, tensor_path):
-        """Classify a single clip tensor file and return (predicted_label, confidence)"""
-
-        # tensor_path in manifest is repo-root relative like:
-        # data/prototype_dataset/tensors/tensor_000000.npy
-        tensor_path = str(tensor_path)
-
-        # normalise separators (handles any / or \ mix)
-        tensor_path = tensor_path.replace("/", os.sep).replace("\\", os.sep)
-
-        # if it's relative, make it relative to repo root (you run from repo root)
+        """Classify a single clip tensor file and return (predicted_label, confidence, probs)"""
+        tensor_path = str(tensor_path).replace("/", os.sep).replace("\\", os.sep)
+        
         if not os.path.isabs(tensor_path):
-            # current working dir is repo root in your run command
-            tensor_path = os.path.join(os.getcwd(), tensor_path)
-
+            # Manifest paths are relative to v5_dataset folder
+            tensor_path = os.path.join(REPO_ROOT, "data", "v5_dataset", tensor_path)
+        
         if not os.path.exists(tensor_path):
             return None, None, None
-
+        
         # Inference
         audio = np.load(tensor_path)
         tensor = torch.from_numpy(audio).float().view(1, 1, -1).to(self.device)
-
+        
         with torch.no_grad():
-            fingerprint = self.model(tensor).cpu().numpy().flatten()
-
+            h, z = self.model(tensor, return_features=True)
+            fingerprint = h.cpu().numpy().flatten()  # Use h (512-dim), not z
+        
         # Distance to centroids
-        dists = [np.linalg.norm(fingerprint - self.territories[i])
-                for i in range(self.n_classes)]
-        scores = 1.0 / (np.array(dists) + 0.8)
+        dists = []
+        for lab in self.labels:
+            lab_norm = norm_label(lab)
+            if lab_norm in self.territory_map:
+                dist = np.linalg.norm(fingerprint - self.territory_map[lab_norm])
+            else:
+                dist = float('inf')
+            dists.append(dist)
+        
+        dists = np.array(dists)
+        scores = 1.0 / (dists + 0.8)
         probs = scores / np.sum(scores)
-
+        
         pred_idx = np.argmax(probs)
         return self.labels[pred_idx], float(probs[pred_idx]), probs
-
 
     def run_full_analysis(self):
         """Run classification on entire dataset"""
@@ -115,17 +141,25 @@ class ConfusionAnalyzer:
         
         total = len(self.manifest)
         correct = 0
+        processed = 0
         per_clip_rows = []
-
         
         for idx, row in self.manifest.iterrows():
             clip_id = int(row[id_col])
             actual_label = row['vessel_class']
             
-            pred_label, confidence, probs = self.classify_single(row["tensor_path"])
+            # Build tensor path
+            if 'tensor_path' in row:
+                tensor_path = row['tensor_path']
+            else:
+                tensor_path = f"data/v5_dataset/tensors/tensor_{clip_id:06d}.npy"
+            
+            pred_label, confidence, probs = self.classify_single(tensor_path)
             
             if pred_label is None:
                 continue
+            
+            processed += 1
             
             row_out = {
                 "clip_id": clip_id,
@@ -136,7 +170,6 @@ class ConfusionAnalyzer:
             for k, lab in enumerate(self.labels):
                 row_out[f"p_{lab}"] = float(probs[k])
             per_clip_rows.append(row_out)
-
             
             # Update confusion matrix
             actual_idx = self.label_to_idx[actual_label]
@@ -157,19 +190,24 @@ class ConfusionAnalyzer:
                 })
             
             # Progress
-            if (idx + 1) % 200 == 0:
+            if (idx + 1) % 500 == 0:
                 print(f"   Processed {idx + 1}/{total} clips...")
         
+        # Save per-clip results
         df_pc = pd.DataFrame(per_clip_rows)
-        df_pc.to_csv(os.path.join(ARTIFACTS_DIR, "per_clip_class_results_confidences.csv"), index=False)
-        print(f"🧾 Saved: {os.path.join(ARTIFACTS_DIR, 'per_clip_class_results_confidences.csv')}")
-
-        df_pc.to_markdown(os.path.join(ARTIFACTS_DIR, "per_clip_class_results_confidences.md"), index=False)
-        print(f"🧾 Saved: {os.path.join(ARTIFACTS_DIR, 'per_clip_class_results_confidences.md')}")
-
+        csv_path = os.path.join(ARTIFACTS_DIR, "per_clip_class_results_confidences.csv")
+        df_pc.to_csv(csv_path, index=False)
+        print(f"🧾 Saved: {csv_path}")
         
-        accuracy = correct / total * 100
-        print(f"\n✅ Analysis complete: {correct}/{total} correct ({accuracy:.1f}%)")
+        try:
+            md_path = os.path.join(ARTIFACTS_DIR, "per_clip_class_results_confidences.md")
+            df_pc.to_markdown(md_path, index=False)
+            print(f"🧾 Saved: {md_path}")
+        except Exception as e:
+            print(f"   (Markdown export skipped: {e})")
+        
+        accuracy = correct / processed * 100 if processed > 0 else 0
+        print(f"\n✅ Analysis complete: {correct}/{processed} correct ({accuracy:.1f}%)")
         return accuracy
 
     def plot_confusion_matrix(self, save_path="confusion_matrix.png"):
@@ -178,6 +216,7 @@ class ConfusionAnalyzer:
         
         # Normalize for percentages
         row_sums = self.confusion.sum(axis=1, keepdims=True)
+        row_sums[row_sums == 0] = 1  # Avoid division by zero
         confusion_pct = self.confusion / row_sums * 100
         
         # Create heatmap
@@ -193,7 +232,7 @@ class ConfusionAnalyzer:
         
         plt.xlabel('Predicted Class', fontsize=12)
         plt.ylabel('Actual Class', fontsize=12)
-        plt.title('SKANN-SSL Confusion Matrix\n(Row-Normalized Percentages)', fontsize=14)
+        plt.title('SKANN-SSL V3 Confusion Matrix\n(Row-Normalized Percentages)', fontsize=14)
         plt.tight_layout()
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         plt.close()
@@ -202,15 +241,15 @@ class ConfusionAnalyzer:
     def generate_report(self, save_path="confusion_report.txt"):
         """Generate detailed text report"""
         with open(save_path, 'w', encoding='utf-8') as f:
-
             f.write("=" * 60 + "\n")
-            f.write("SKANN-SSL CONFUSION ANALYSIS REPORT\n")
+            f.write("SKANN-SSL V3 CONFUSION ANALYSIS REPORT\n")
             f.write("=" * 60 + "\n\n")
             
             # Overall accuracy
             total = self.confusion.sum()
             correct = np.trace(self.confusion)
-            f.write(f"Overall Accuracy: {correct}/{total} ({correct/total*100:.1f}%)\n\n")
+            accuracy = correct / total * 100 if total > 0 else 0
+            f.write(f"Overall Accuracy: {correct}/{total} ({accuracy:.1f}%)\n\n")
             
             # Per-class metrics
             f.write("-" * 60 + "\n")
@@ -247,11 +286,12 @@ class ConfusionAnalyzer:
             for i in range(self.n_classes):
                 for j in range(self.n_classes):
                     if i != j and self.confusion[i, j] > 0:
+                        row_sum = self.confusion[i, :].sum()
                         confusion_pairs.append({
                             'actual': self.labels[i],
                             'predicted': self.labels[j],
                             'count': self.confusion[i, j],
-                            'pct': self.confusion[i, j] / self.confusion[i, :].sum() * 100
+                            'pct': self.confusion[i, j] / row_sum * 100 if row_sum > 0 else 0
                         })
             
             confusion_pairs.sort(key=lambda x: x['count'], reverse=True)
@@ -268,14 +308,12 @@ class ConfusionAnalyzer:
                 
                 df_errors = pd.DataFrame(self.misclassified)
                 
-                # By sea state
                 if 'sea_state' in df_errors.columns:
                     f.write("\nErrors by Sea State:\n")
                     sea_counts = df_errors['sea_state'].value_counts()
                     for ss, count in sea_counts.items():
                         f.write(f"  SS{ss}: {count} errors\n")
                 
-                # By blade count
                 if 'n_blades' in df_errors.columns:
                     f.write("\nErrors by Blade Count:\n")
                     blade_counts = df_errors['n_blades'].value_counts()
@@ -290,17 +328,19 @@ class ConfusionAnalyzer:
             df = pd.DataFrame(self.misclassified)
             df.to_csv(save_path, index=False)
             print(f"📋 Saved: {save_path} ({len(df)} errors)")
+        else:
+            print("📋 No misclassified clips to save.")
 
 
 def main():
     print("=" * 60)
-    print("SKANN-SSL CONFUSION MATRIX GENERATOR")
+    print("SKANN-SSL V3 CONFUSION MATRIX GENERATOR")
     print("=" * 60)
     
-    # Initialize
+    # Initialize with V3 paths
     analyzer = ConfusionAnalyzer(
-        bundle_path="stages/stage3_ssl/artifacts/SKANN_SSL_Stage3_SSL_Encoder_Bundle.joblib",
-        territories_path="stages/stage6_evaluation/artifacts/vessel_territories_stage6_2025-12-29.joblib"
+        bundle_path=os.path.join(REPO_ROOT, "stages", "stage3_ssl", "artifacts", "SKANN_SSL_V3_Production_Bundle.joblib"),
+        territories_path=os.path.join(REPO_ROOT, "stages", "stage3_ssl", "artifacts", "vessel_territories_v3.joblib")
     )
     
     # Run analysis
@@ -320,9 +360,7 @@ def main():
     print("  • confusion_matrix.png")
     print("  • confusion_report.txt")
     print("  • misclassified_clips.csv")
-    
-
-
+    print("  • per_clip_class_results_confidences.csv")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 # stages/stage6_evaluation/stage6_acoustic_sonar_classifier.py
-# V2.1.0 Stage-6 Radar Classifier
+# V3/V5 Stage-6 Radar Classifier
 # Fixes:
 # - CPU-safe bundle load (CUDA-saved tensors on CPU-only torch)
 # - Robust structured territories parsing (centroids/vessel_classes/class_to_idx)
@@ -134,16 +134,20 @@ def repo_root_from_here() -> str:
 
 
 # -----------------------------
-# 1) Imports from Stage-3 (authoritative)
+# 1) Imports from Stage-3 (optional — V3 bundle stores full model object)
 # -----------------------------
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "stage3_ssl")))
+_HAS_ENCODER_CLASS = False
 try:
-    from train_script import HybridSKEncoderV2  # must exist in stages/stage3_ssl/train_script.py
-except Exception as e:
-    raise ImportError(
-        "Could not import HybridSKEncoderV2 from stages/stage3_ssl/train_script.py. "
-        "Confirm the class name in Stage-3 train_script.py."
-    ) from e
+    from barlow_twins import HybridSKEncoderV3  # V3 architecture
+    _HAS_ENCODER_CLASS = True
+except ImportError:
+    try:
+        from train_script import HybridSKEncoderV2  # V2 fallback
+        HybridSKEncoderV3 = HybridSKEncoderV2
+        _HAS_ENCODER_CLASS = True
+    except ImportError:
+        pass  # Bundle must contain 'model' key (full model object)
 
 
 # -----------------------------
@@ -184,7 +188,7 @@ class AcousticRadarEngine:
 
         # ---- Manifest ----
         if manifest_path is None:
-            manifest_path = os.path.join(repo_root_from_here(), "data", "prototype_dataset", "master_dataset_manifest.csv")
+            manifest_path = os.path.join(repo_root_from_here(), "data", "v5_dataset", "master_dataset_manifest.csv")
 
         if not os.path.exists(manifest_path):
             raise FileNotFoundError(f"Manifest not found: {manifest_path}")
@@ -199,7 +203,12 @@ class AcousticRadarEngine:
         if "model" in self.bundle:
             self.model = self.bundle["model"]
         elif "model_state" in self.bundle:
-            self.model = HybridSKEncoderV2()
+            if not _HAS_ENCODER_CLASS:
+                raise ImportError(
+                    "Bundle contains 'model_state' but no encoder class could be imported. "
+                    "Ensure barlow_twins.py or train_script.py is in stages/stage3_ssl/."
+                )
+            self.model = HybridSKEncoderV3()
             self.model.load_state_dict(self.bundle["model_state"])
         else:
             raise KeyError("Bundle must contain either 'model' or 'model_state'.")
@@ -218,11 +227,11 @@ class AcousticRadarEngine:
         # Resolve relative to manifest directory
         candidate = os.path.normpath(os.path.join(self.manifest_base_dir, filename))
 
-        # De-duplicate if manifest paths already include "data/prototype_dataset/..."
-        # Example bad: <base>\data\prototype_dataset\tensors\...
-        # where base already ends with ...\data\prototype_dataset
+        # De-duplicate if manifest paths already include "data/v5_dataset/..."
+        # Example bad: <base>\data\v5_dataset\tensors\...
+        # where base already ends with ...\data\v5_dataset
         base_norm = os.path.normpath(self.manifest_base_dir)
-        dup_prefix = os.path.normpath(os.path.join(base_norm, "data", "prototype_dataset"))
+        dup_prefix = os.path.normpath(os.path.join(base_norm, "data", "v5_dataset"))
 
         if candidate.startswith(dup_prefix + os.sep):
             candidate = os.path.normpath(os.path.join(base_norm, candidate[len(dup_prefix) + 1:]))
@@ -252,7 +261,7 @@ class AcousticRadarEngine:
         if "tensor_path" in match.columns:
             filename = self._resolve_tensor_path(match["tensor_path"].values[0])
         else:
-            filename = os.path.join(repo_root_from_here(), "data", "prototype_dataset", "tensors", f"tensor_{clip_str}.npy")
+            filename = os.path.join(repo_root_from_here(), "data", "v5_dataset", "tensors", f"tensor_{clip_str}.npy")
 
         if not os.path.exists(filename):
             print(f"   ❌ Tensor file missing: {filename}")
@@ -263,7 +272,8 @@ class AcousticRadarEngine:
         tensor = torch.from_numpy(audio).float().view(1, 1, -1).to(self.device)
 
         with torch.no_grad():
-            fingerprint = self.model(tensor).detach().cpu().numpy().flatten()
+            h, z = self.model(tensor, return_features=True)
+            fingerprint = h.detach().cpu().numpy().flatten()
 
         # DISTANCE TO TERRITORIES (aligned by bundle label order)
         dists = [
@@ -402,10 +412,11 @@ class AcousticRadarEngine:
 
 
 if __name__ == "__main__":
+    _root = repo_root_from_here()
     engine = AcousticRadarEngine(
-        bundle_path="C:/Users/Admin/uw_project/SKANN-SSL/stages/stage3_ssl/artifacts/SKANN_SSL_Production_Bundle.joblib",
-        territories_path="C:/Users/Admin/uw_project/SKANN-SSL/stages/stage3_ssl/artifacts/territories/vessel_territories_v2_1_0.joblib",
-        manifest_path="C:/Users/Admin/uw_project/SKANN-SSL/data/prototype_dataset/master_dataset_manifest.csv",
+        bundle_path=os.path.join(_root, "stages", "stage3_ssl", "artifacts", "SKANN_SSL_V3_Production_Bundle.joblib"),
+        territories_path=os.path.join(_root, "stages", "stage3_ssl", "artifacts", "vessel_territories_v3.joblib"),
+        manifest_path=os.path.join(_root, "data", "v5_dataset", "master_dataset_manifest.csv"),
     )
 
     LOG_PATH = os.path.join(ARTIFACTS_DIR, "stage6_per_query_results_log.csv")
@@ -421,12 +432,12 @@ if __name__ == "__main__":
             break
 
         if not cid.isdigit():
-            print("   ❌ Please enter a numeric Clip ID (0–1919).")
+            print("   ❌ Please enter a numeric Clip ID (0–11999).")
             continue
 
         cid_int = int(cid)
-        if cid_int < 0 or cid_int > 1919:
-            print("   ❌ Clip ID out of range. Valid range is 0–1919.")
+        if cid_int < 0 or cid_int > 11999:
+            print("   ❌ Clip ID out of range. Valid range is 0–11999.")
             continue
 
         probs, pred, conf, actual = engine.classify(cid)

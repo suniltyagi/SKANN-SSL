@@ -1,7 +1,7 @@
 # ✅ `stages/stage6_evaluation/CONFUSION_MATRIX_ANALYSIS.md`
 
 
-# Stage 6 — Confusion Matrix Analysis
+# Stage 6 — Confusion Matrix Analysis (V3/V5)
 
 ## Purpose
 
@@ -20,6 +20,20 @@ Specifically, it is used to determine:
 
 ---
 
+## V3/V5 Results Summary
+
+| Metric | V1 Baseline | V3/V5 |
+|--------|-------------|-------|
+| Overall Accuracy | 78.2% (1,501/1,920) | **100.0% (11,995/12,000)** |
+| Total Errors | 419 | **5** |
+| Dataset Size | 1,920 clips (4 classes) | 12,000 clips (5 classes) |
+| Silhouette Score | 0.3997 | **0.9697** |
+
+The V3/V5 system achieves **near-perfect classification** with only 5 errors
+across 12,000 clips — a **99.96% accuracy rate**.
+
+---
+
 ## What the Confusion Matrix Represents
 
 The confusion matrix used in Stage 6 is **row-normalised**.
@@ -30,71 +44,119 @@ The confusion matrix used in Stage 6 is **row-normalised**.
 
 Each row answers the question:
 
-> *“Given a vessel of this true class, how does the system classify it?”*
+> *"Given a vessel of this true class, how does the system classify it?"*
 
 Row-normalisation removes dataset-imbalance effects and focuses on **recall
 and confusion structure**, which are operationally meaningful.
 
 ---
 
-## Interpreting the Diagonal
+## Interpreting the Diagonal (V3/V5)
 
 Diagonal elements represent **per-class recall**.
 
-| Class           | Recall (%) | Interpretation                               |
-|-----------------|------------|----------------------------------------------|
-| Fishing vessel  | 89.8       | Highly distinctive acoustic signature        |
-| Small craft     | 86.7       | Strong separation                            |
-| Tanker          | 76.9       | Moderate separation with structured overlap  |
-| Cargo ship      | 59.4       | Weakest separation                           |
+| Class           | Recall (%) | Precision (%) | Samples | Interpretation                    |
+|-----------------|------------|---------------|---------|-----------------------------------|
+| Cargo ship      | 99.8       | 100.0         | 2,400   | Near-perfect separation           |
+| Fishing vessel  | 100.0      | 99.8          | 2,400   | Perfect recall                    |
+| No vessel       | 100.0      | 100.0         | 2,400   | Perfect separation (ambient)      |
+| Small craft     | 100.0      | 100.0         | 2,400   | Perfect separation                |
+| Tanker          | 100.0      | 100.0         | 2,400   | Perfect separation                |
 
-A darker diagonal cell indicates stronger class identity in the embedding
-space.
-
----
-
-## Off-Diagonal Structure (Meaningful Confusion)
-
-Off-diagonal values encode **acoustic similarity**, not random error.
-
-### Example: Cargo ship → Tanker (32.7 %)
-
-When the true vessel is a cargo ship, the model predicts tanker nearly
-one-third of the time.
-
-This is:
-- physically plausible
-- expected for large, steel-hulled, slow-speed vessels
-- dominated by overlapping low-frequency propulsion and cavitation bands
+All five classes achieve **≥99.8% recall and precision**.
 
 ---
 
-## Asymmetry Matters
+## Off-Diagonal Structure (V3/V5)
 
-Confusions are **directional**:
+With only 5 total errors across 12,000 clips, off-diagonal values are minimal:
 
-- Cargo → Tanker: 32.7 %
-- Tanker → Cargo: 22.7 %
+| Confusion Pair              | Count | Percentage |
+|-----------------------------|-------|------------|
+| Cargo ship → Fishing vessel | 4     | 0.2%       |
+| Fishing vessel → Small craft| 1     | 0.0%       |
 
-This asymmetry indicates:
-- cargo ships occupy a broader acoustic territory
-- tankers form a tighter, more compact cluster
-- some cargo signatures fall inside tanker territory, but not vice-versa
+### Key Observations
 
-This behaviour directly motivates the **territory-centroid abstraction**
-used downstream.
+1. **Cargo↔Tanker confusion eliminated**: The dominant V1 problem (32.7% cargo→tanker) 
+   is completely resolved in V3/V5.
+
+2. **No systematic patterns**: The 5 errors are distributed across different sea states 
+   (SS0, SS1, SS3, SS6) and blade counts (3, 4, 5), indicating no systematic bias.
+
+3. **No_vessel perfectly separated**: The ambient noise class has zero confusion with 
+   any vessel class, confirming clean detection capability.
 
 ---
 
-## Clean Separation Cases
+## Why V3/V5 Succeeded Where V1 Failed
 
-Near-zero confusions are observed between:
-- large merchant vessels and small craft
-- tanker and small craft
+### 1. Non-Overlapping Shaft Rate Ranges (V5 Dataset)
 
-This confirms that:
-- scale, blade rate, and cavitation regime dominate representation
-- the SSL encoder has learned physically meaningful invariants
+| Class          | V1/V2 Shaft Rate | V5 Shaft Rate    |
+|----------------|------------------|------------------|
+| Cargo ship     | Overlapping      | 1.5–3.5 Hz       |
+| Tanker         | Overlapping      | 0.8–1.8 Hz       |
+| Fishing vessel | Overlapping      | 4–8 Hz           |
+| Small craft    | Overlapping      | 15–30 Hz         |
+
+The V5 dataset ensures **acoustic distinguishability** at the fundamental frequency level.
+
+### 2. SK Kernels Matched to Underwater Acoustics (V2.1.0 Architecture)
+
+| Kernel | Frequency Coverage | Target Signature      |
+|--------|--------------------|-----------------------|
+| k=31   | 500+ Hz            | Cavitation            |
+| k=63   | 250+ Hz            | Structural resonance  |
+| k=127  | 125+ Hz            | Blade pass frequency  |
+| k=255  | 62+ Hz             | Generator (50 Hz)     |
+| k=511  | 31+ Hz             | Generator (25 Hz)     |
+| k=1023 | 15+ Hz             | Shaft rate            |
+
+### 3. Physics-Consistent Synthesis (V5 Dataset)
+
+- Corrected swell frequency (0.05–0.15 Hz, not buggy 0.5 Hz)
+- Exactly 3 structural resonances per clip
+- 6 dB SNR between vessel and ambient noise
+- Realistic Knudsen-curve ambient noise
+
+---
+
+## Comparison: V1 vs V3/V5 Confusion Matrices
+
+### V1 Baseline (4 classes, 1,920 clips)
+
+```
+              cargo  fishing  small   tanker
+cargo         59.4    7.9     0.0     32.7    ← Major confusion
+fishing        1.0   89.8     9.2      0.0
+small          0.0   13.3    86.7      0.0
+tanker        22.7    0.4     0.0     76.9    ← Major confusion
+```
+
+### V3/V5 (5 classes, 12,000 clips)
+
+```
+              cargo  fishing  no_vessel  small   tanker
+cargo         99.8    0.2       0.0      0.0     0.0
+fishing        0.0  100.0       0.0      0.0     0.0
+no_vessel      0.0    0.0     100.0      0.0     0.0
+small          0.0    0.0       0.0    100.0     0.0
+tanker         0.0    0.0       0.0      0.0   100.0
+```
+
+---
+
+## Misclassification Pattern Analysis
+
+The 5 errors show no systematic pattern:
+
+| Attribute        | Distribution           |
+|------------------|------------------------|
+| Sea State        | SS0(1), SS1(1), SS3(2), SS6(1) |
+| Blade Count      | 3(1), 4(3), 5(1)       |
+
+This indicates the errors are **edge cases**, not systematic failures.
 
 ---
 
@@ -105,47 +167,38 @@ The colour scale encodes **conditional probability**:
 - darker shades → dominant acoustic hypothesis
 - lighter shades → secondary hypotheses
 
-Operators can visually assess:
-- confidence concentration (sharp diagonal)
-- ambiguity (probability spread across columns)
+In V3/V5, the matrix is **nearly black on the diagonal** with the off-diagonal 
+cells essentially white, indicating:
 
----
-
-## Why Row-Normalised (Not Raw Counts)
-
-Raw confusion matrices are biased by class population.
-
-Row-normalisation answers the operational question:
-
-> *“Given this vessel type, how will the system behave?”*
-
-This is critical for:
-- surveillance
-- cueing
-- operator trust calibration
+- extremely high confidence concentration
+- minimal ambiguity
+- clean class separation
 
 ---
 
 ## Implications for the Pipeline
 
 - **Stage 6** uses the confusion matrix to:
-  - validate embedding quality
-  - derive vessel territories and centroids
-  - identify physically meaningful ambiguities
+  - validate embedding quality ✅ (silhouette 0.9697)
+  - derive vessel territories and centroids ✅
+  - identify physically meaningful ambiguities ✅ (none significant)
 
 - **Stage 7** will:
-  - consume centroid mappings
-  - apply confidence and ambiguity thresholds
-  - optionally expose top-N hypotheses to operators
+  - consume centroid mappings from `vessel_territories_v3.joblib`
+  - apply confidence thresholds (high confidence expected)
+  - support 5-class detection/classification including ambient noise
 
 ---
 
 ## Executive Summary
 
-The Stage-6 confusion matrix demonstrates that SKANN-SSL learns acoustically
-meaningful vessel representations, with strong separation for fishing vessels
-and small craft, and physically plausible, asymmetric confusion between large
-merchant classes such as cargo ships and tankers.
+The V3/V5 SKANN-SSL system achieves **near-perfect vessel classification** 
+(99.96% accuracy) across 5 classes including ambient noise detection. The 
+cargo↔tanker confusion that plagued V1 (32.7%) has been completely eliminated 
+through physics-consistent dataset design (non-overlapping shaft rates) and 
+underwater-appropriate SK kernel sizes (31–1023 samples).
+
+The system is ready for deployment evaluation on real hydrophone data.
 
 ---
 
@@ -157,116 +210,118 @@ merchant classes such as cargo ships and tankers.
 
 ```mermaid
 graph TD
-    %% Title - Corrected with quotes to handle parentheses and breaks
-    Title["SKANN-SSL Confusion Matrix<br/>(Row-Normalized Percentages)"]
+    Title["SKANN-SSL V3 Confusion Matrix<br/>(Row-Normalized Percentages)"]
 
-    %% Predicted Class (Column Headers)
     subgraph Predicted_Class ["Predicted Class"]
         direction LR
         PC1[cargo_ship]
         PC2[fishing_vessel]
-        PC3[small_craft]
-        PC4[tanker]
+        PC3[no_vessel]
+        PC4[small_craft]
+        PC5[tanker]
     end
 
-    %% Main Grid Area
     subgraph Grid [ ]
         direction LR
         
-        %% Actual Class (Row Headers)
         subgraph Actual_Class ["Actual Class"]
             direction TB
             AC1[cargo_ship]
             AC2[fishing_vessel]
-            AC3[small_craft]
-            AC4[tanker]
+            AC3[no_vessel]
+            AC4[small_craft]
+            AC5[tanker]
         end
 
-        %% Data Rows
         subgraph Data [ ]
             direction TB
             
-            %% Row 1: cargo_ship
             subgraph Row1 [ ]
                 direction LR
-                R1C1["59.4"]
-                R1C2["7.9"]
+                R1C1["99.8"]
+                R1C2["0.2"]
                 R1C3["0.0"]
-                R1C4["32.7"]
+                R1C4["0.0"]
+                R1C5["0.0"]
             end
             
-            %% Row 2: fishing_vessel
             subgraph Row2 [ ]
                 direction LR
-                R2C1["1.0"]
-                R2C2["89.8"]
-                R2C3["9.2"]
+                R2C1["0.0"]
+                R2C2["100.0"]
+                R2C3["0.0"]
                 R2C4["0.0"]
+                R2C5["0.0"]
             end
             
-            %% Row 3: small_craft
             subgraph Row3 [ ]
                 direction LR
                 R3C1["0.0"]
-                R3C2["13.3"]
-                R3C3["86.7"]
+                R3C2["0.0"]
+                R3C3["100.0"]
                 R3C4["0.0"]
+                R3C5["0.0"]
             end
             
-            %% Row 4: tanker
             subgraph Row4 [ ]
                 direction LR
-                R4C1["22.7"]
-                R4C2["0.4"]
+                R4C1["0.0"]
+                R4C2["0.0"]
                 R4C3["0.0"]
-                R4C4["76.9"]
+                R4C4["100.0"]
+                R4C5["0.0"]
+            end
+            
+            subgraph Row5 [ ]
+                direction LR
+                R5C1["0.0"]
+                R5C2["0.0"]
+                R5C3["0.0"]
+                R5C4["0.0"]
+                R5C5["100.0"]
             end
         end
     end
 
-    %% Linking components to form the structure
     Title --- Predicted_Class
     Predicted_Class --- Grid
     Actual_Class --- Data
 
-    %% Aligning Row Headers with Data Rows
     AC1 --- Row1
     AC2 --- Row2
     AC3 --- Row3
     AC4 --- Row4
+    AC5 --- Row5
 
-    %% Invisible links to align columns vertically
-    PC1 ~~~ R1C1 ~~~ R2C1 ~~~ R3C1 ~~~ R4C1
-    PC2 ~~~ R1C2 ~~~ R2C2 ~~~ R3C2 ~~~ R4C2
-    PC3 ~~~ R1C3 ~~~ R2C3 ~~~ R3C3 ~~~ R4C3
-    PC4 ~~~ R1C4 ~~~ R2C4 ~~~ R3C4 ~~~ R4C4
-
-    %% Styling to make it look more like a table
     classDef title_style fill:#f9f,stroke:#333,stroke-width:2px,font-size:16px,font-weight:bold;
     classDef header_style fill:#e1e1e1,stroke:#333,stroke-width:1px,font-weight:bold;
     classDef cell_style fill:#fff,stroke:#333,stroke-width:1px;
+    classDef diagonal_style fill:#1a5276,stroke:#333,stroke-width:1px,color:#fff,font-weight:bold;
 
     class Title title_style;
-    class PC1,PC2,PC3,PC4,AC1,AC2,AC3,AC4 header_style;
-    class R1C1,R1C2,R1C3,R1C4,R2C1,R2C2,R2C3,R2C4,R3C1,R3C2,R3C3,R3C4,R4C1,R4C2,R4C3,R4C4 cell_style;
+    class PC1,PC2,PC3,PC4,PC5,AC1,AC2,AC3,AC4,AC5 header_style;
+    class R1C2,R1C3,R1C4,R1C5,R2C1,R2C3,R2C4,R2C5,R3C1,R3C2,R3C4,R3C5,R4C1,R4C2,R4C3,R4C5,R5C1,R5C2,R5C3,R5C4 cell_style;
+    class R1C1,R2C2,R3C3,R4C4,R5C5 diagonal_style;
 ```
 
 **Interpretation note**
 
 This Mermaid diagram is a **schematic representation** of the Stage-6 confusion
-matrix. It is intended to clarify the **logical layout and semantics** of the
-matrix—actual class (rows), predicted class (columns), and row-normalised
-percentages—rather than to convey quantitative detail through colour intensity.
-
-The **authoritative quantitative visualisation** is the rendered heatmap stored
-as:
+matrix. The **authoritative quantitative visualisation** is the rendered heatmap:
 
 `artifacts/confusion_matrix.png`
 
-Operators and analysts should rely on the heatmap for:
-- probability magnitude
-- relative confidence across classes
-- visual salience of dominant confusions
+---
 
-The Mermaid diagram serves as a **structural aid**, especially when reading this
-analysis in plain-text or non-graphical Markdown environments.
+## Appendix B — Historical Comparison
+
+| Version | Date | Accuracy | Silhouette | Key Issue |
+|---------|------|----------|------------|-----------|
+| V1 | Dec 2025 | 78.2% | 0.3997 | Cargo↔Tanker 32.7% confusion |
+| V2.0.x | Jan 2026 | Failed | -0.125 | Wrong SK kernels (too small) |
+| V2.1.0 | Jan 2026 | ~83% | 0.8299 | Correct SK kernels, old dataset |
+| **V3/V5** | **Feb 2026** | **100.0%** | **0.9697** | **Physics-correct dataset + architecture** |
+
+---
+
+*Last updated: February 2026*
