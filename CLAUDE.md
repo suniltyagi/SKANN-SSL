@@ -9,23 +9,36 @@
 
 **Core approach:** Learned filterbank front-ends (SKConv) + self-supervised learning (Barlow Twins) to produce robust acoustic embeddings without labels.
 
+**Current Version:** V3/V5 (February 2026) — 100% classification accuracy on 12,000 clips
+
 ## Architecture Pipeline
 
 ```
 Stage -1 → 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7
 ```
 
-| Stage | Name | Purpose |
-|-------|------|---------|
-| -1 | Sample Generation | Synthetic vessel-noise waveforms (physics-inspired) |
-| 0 | Preprocessing | Resample, normalize, segment to `[B, 1, T]` |
-| 1 | Learned Filterbank | SKConv1D multi-scale front-end → `[B, F, T1]` |
-| 2 | 2D Encoder | SKConv2D blocks → embedding `h ∈ ℝᴰ` |
-| 3 | SSL Training | Barlow Twins loss (invariance + decorrelation) |
-| 4 | Augmentation Engine | Physics-consistent positive pairs for SSL |
-| 5 | Embedding & Clustering | HDBSCAN clustering, UMAP visualization |
-| 6 | Evaluation | Analytics, robustness tests, confusion matrices |
-| 7 | Deployment | ONNX export, quantization |
+| Stage | Name | Status | Purpose |
+|-------|------|--------|---------|
+| -1 | Sample Generation | ✅ Complete | Synthetic vessel-noise waveforms (V5 physics) |
+| 0 | Preprocessing | ✅ Complete | Resample, normalize, segment to `[B, 1, T]` |
+| 1 | Learned Filterbank | ✅ Complete | SKConv1D multi-scale front-end → `[B, F, T1]` |
+| 2 | 2D Encoder | ✅ Complete | HybridSKEncoderV3 → embedding `h ∈ ℝ⁵¹²` |
+| 3 | SSL Training | ✅ Complete | Barlow Twins loss (V3 production bundle) |
+| 4 | Augmentation Engine | ⏳ Planned | Physics-consistent positive pairs for SSL |
+| 5 | Training Loop | ✅ Complete | Integrated with Stage 3 |
+| 6 | Evaluation | ✅ Complete | Confusion matrix, territory mapping (100% accuracy) |
+| 7 | Deployment | ✅ Prototype | Demo GUI, ONNX export planned |
+
+## Key Metrics (V3/V5)
+
+| Metric | Value |
+|--------|-------|
+| Overall Accuracy | 100.0% (11,995/12,000) |
+| Silhouette Score | 0.9697 |
+| Classes | 5 (cargo, fishing, no_vessel, small_craft, tanker) |
+| Dataset | 12,000 clips × 5 seconds @ 16kHz |
+| Model Parameters | 175.9M (training) / ~2M (inference) |
+| Embedding Dimension | 512 (backbone h) / 256 (projector z) |
 
 ## Key Principles
 
@@ -33,46 +46,83 @@ Stage -1 → 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7
 2. **SSL for representation, not classification** — Embeddings support downstream analysis
 3. **Synthetic data is first-class** — Stage -1 enables controlled experiments before real data
 4. **Interpretability matters** — Embeddings should be analyzable, not black-box
+5. **Non-overlapping shaft rates** — V5 dataset ensures acoustic distinguishability
 
 ## Repository Structure
 
-- `stages/` — Stage-specific code and READMEs
-- `docs/` — Theory, specs, and design documents
-- `data/` — Main dataset folder (local-only, not committed)
-- `ROADMAP.md` — Full pipeline specification
-
-## GUI Demo (Stage 7)
-
-Interactive tkinter GUI for vessel classification demonstration.
-
-**Location:** `stages/stage7_deployment/demo/`
-
-**Structure:**
 ```
-stages/stage7_deployment/demo/
-├── skann_ssl_demo_v2.py       # GUI demo (HybridSKEncoderV2 + radar plot UI)
-├── requirements.txt           # torch, numpy, pandas, matplotlib, joblib, sounddevice
-├── model/                     # Model artefacts (.joblib) — gitignored
-└── data/
-    ├── manifest.csv           # Clip metadata (committed)
-    └── tensors/               # Audio tensors — gitignored
+SKANN-SSL/
+├── README.md              # Project overview with mermaid diagrams
+├── ROADMAP.md             # Pipeline specification
+├── CLAUDE.md              # This file
+│
+├── data/
+│   └── v5_dataset/        # 12,000 clips (5 classes)
+│       ├── tensors/
+│       ├── waveforms/
+│       └── master_dataset_manifest.csv
+│
+├── stages/
+│   ├── stage_minus1/      # V5 synthetic data generator
+│   ├── stage3_ssl/        # SSL training
+│   │   ├── train_script.py           # HybridSKEncoderV3 architecture
+│   │   └── artifacts/
+│   │       ├── SKANN_SSL_V3_Production_Bundle.joblib
+│   │       └── vessel_territories_v3.joblib
+│   ├── stage6_evaluation/ # Evaluation scripts
+│   │   ├── stage6_confusion_matrix.py
+│   │   ├── stage6_acoustic_sonar_classifier.py
+│   │   └── artifacts/
+│   └── stage7_deployment/ # Demo GUI
+│
+├── archive/               # V1 and V2 preserved for reproducibility
+├── docs/                  # Documentation
+└── shared/                # Shared utilities
 ```
 
-**Setup:** Model and tensor files are gitignored (too large). After cloning, copy from training artefacts or symlink to `data/prototype_dataset/tensors/`. See `stages/stage7_deployment/demo/README.md`.
+## Key Files
 
-**Data Policy:** Do not edit, move, or commit files under `data/`. Treat datasets as local-only artefacts.
+| File | Purpose |
+|------|---------|
+| `stages/stage3_ssl/train_script.py` | HybridSKEncoderV3 model architecture |
+| `stages/stage3_ssl/artifacts/SKANN_SSL_V3_Production_Bundle.joblib` | Trained model + embeddings |
+| `stages/stage3_ssl/artifacts/vessel_territories_v3.joblib` | Class centroids (512-dim) |
+| `data/v5_dataset/master_dataset_manifest.csv` | Dataset metadata |
 
-## Operational Anchors (Current Baseline)
+## Linked Repositories
 
-- **Stage 3 training:** `stages/stage3_ssl/README.md`, `stage3_TRAIN_EXPORT_NOTES.md`
-- **Stage 6 evaluation:** `stages/stage6_evaluation/README.md`, `CONFUSION_MATRIX_ANALYSIS.md`
+| Repository | Purpose |
+|------------|---------|
+| [SKANN-SSL](https://github.com/suniltyagi/SKANN-SSL) | Main development repo |
+| [SKANN-SSL-V5-Demo](https://github.com/suniltyagialtair/SKANN-SSL-V5-Demo) | GUI demo application |
+| [Underwater-Acoustic-Synthetic-Dataset](https://github.com/suniltyagialtair/Underwater-Acoustic-Synthetic-Dataset) | V5 dataset (12,000 clips) |
+
+## V5 Physics (Critical)
+
+### Non-Overlapping Shaft Rates
+| Vessel Class | Shaft Rate (Hz) | RPM |
+|--------------|-----------------|-----|
+| tanker | 0.8 – 1.8 | 48–108 |
+| cargo_ship | 1.5 – 3.5 | 90–210 |
+| fishing_vessel | 4.0 – 8.0 | 240–480 |
+| small_craft | 15.0 – 30.0 | 900–1800 |
+
+### SK Kernel Coverage
+| Kernel | Frequency | Target Signature |
+|--------|-----------|------------------|
+| k=1023 | 15+ Hz | Shaft rate |
+| k=511 | 31+ Hz | Blade pass |
+| k=255 | 62+ Hz | Generator |
+| k=127 | 125+ Hz | Equipment |
+| k=63 | 250+ Hz | Flow noise |
+| k=31 | 500+ Hz | Cavitation |
 
 ## Document Priority (Conflict Resolution)
 
-1. Dated Decision Records (ADRs) if present
-2. `ROADMAP.md`
+1. `ROADMAP.md`
+2. Stage READMEs under `stages/`
 3. `/docs/*` theory/spec documents
-4. Stage READMEs under `stages/`
+4. This file (CLAUDE.md)
 
 ## What This Project Is NOT
 
@@ -85,5 +135,9 @@ stages/stage7_deployment/demo/
 - PyTorch for neural network components
 - Audio at 16 kHz sampling rate
 - SKConv (Selective Kernel Convolution) for multi-scale processing
-- HDBSCAN/DBSCAN for clustering
-- ONNX for deployment export
+- Barlow Twins for self-supervised learning
+- ONNX for deployment export (planned)
+
+---
+
+*Last updated: February 2026*
