@@ -106,7 +106,7 @@ graph LR
 
 </div>
 
-The four vessel classes were synthesised with non-overlapping shaft-rate ranges (see below), so these figures show that the pipeline recovers the designed class structure; they do not measure performance on real recordings.
+**Easy by construction.** The four vessel classes were synthesised with disjoint shaft-rate ranges (see below), and every vessel clip has a fixed +6 dB signal-to-noise ratio; together these make the classes cleanly separable. These figures show that the pipeline recovers the designed class structure. High accuracy here says little about performance at sea.
 
 ---
 
@@ -365,8 +365,8 @@ graph TB
         
         subgraph Factor1["1️⃣ Non-Overlapping Shaft Rates"]
             SR["🚢 Vessel Class Separation"]
-            SR1["Tanker: 0.8–1.8 Hz"]
-            SR2["Cargo: 1.5–3.5 Hz"]
+            SR1["Tanker: 1.0–1.5 Hz"]
+            SR2["Cargo: 1.5–2.5 Hz"]
             SR3["Fishing: 4–8 Hz"]
             SR4["Small Craft: 15–30 Hz"]
         end
@@ -396,8 +396,8 @@ graph TB
 
 | Class | Shaft Rate Range | RPM Range |
 |-------|------------------|-----------|
-| 🚢 Tanker | 0.8–1.8 Hz | 48–108 RPM |
-| 🚢 Cargo ship | 1.5–3.5 Hz | 90–210 RPM |
+| 🚢 Tanker | 1.0–1.5 Hz | 60–90 RPM |
+| 🚢 Cargo ship | 1.5–2.5 Hz | 90–150 RPM |
 | 🎣 Fishing vessel | 4–8 Hz | 240–480 RPM |
 | 🚤 Small craft | 15–30 Hz | 900–1800 RPM |
 
