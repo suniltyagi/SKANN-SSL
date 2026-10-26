@@ -1,4 +1,15 @@
-# 🌊 SKANN-SSL: Selective Kernel Audio Neural Networks with Self-Supervised Learning
+# SKANN-SSL: Selective-Kernel Acoustic Neural Network with Self-Supervised Learning
+
+SKANN-SSL is an earlier research repository (2025 to early 2026) by Capt (Dr) Sunil Tyagi at Oravont Systems LLP, Noida, India. It pretrains a selective-kernel filterbank on the raw underwater acoustic waveform with self-supervised learning (Barlow Twins), on the 12,000-clip Underwater Acoustic Synthetic Dataset, for vessel detection and classification.
+
+**Status:** research code, trained and evaluated on synthetic data; not yet validated on real hydrophone recordings. Sunil Tyagi's later work, SKANN, is described in the preprint [arXiv:2609.07399](https://arxiv.org/abs/2609.07399), with its checkpoint and evaluation files on Zenodo ([doi:10.5281/zenodo.22160137](https://doi.org/10.5281/zenodo.22160137)).
+
+- Author: [Capt (Dr) Sunil Tyagi](https://suniltyagi.in/) · [Oravont Systems LLP](https://oravontsystems.com/)
+- SKANN overview: [oravontsystems.com/deep-learning/skann/](https://oravontsystems.com/deep-learning/skann/)
+- Training data: [Underwater Acoustic Synthetic Dataset](https://huggingface.co/datasets/suniltyagi/underwater-acoustic-synthetic-dataset) (v5.0.0, DOI [10.57967/hf/11191](https://doi.org/10.57967/hf/11191), CC BY 4.0). The dataset is a separate item, hosted on Hugging Face; it is not on Zenodo.
+- Version names: V3 is the model version; v5 is the dataset version.
+
+> Not to be confused with Shan et al. (2025), "SKANN: Selective kernel audio neural networks for underwater mixed ship event detection" ([doi:10.1049/cit2.70037](https://doi.org/10.1049/cit2.70037)), which shares the acronym and the selective-kernel fusion but differs in input, task and evaluation.
 
 <div align="center">
 
@@ -26,19 +37,13 @@ graph LR
     style Output fill:#27ae60,stroke:#1e8449,color:#fff
 ```
 
-**An underwater acoustic vessel detection and classification system using physics-aware self-supervised learning**
-
-![Status](https://img.shields.io/badge/Status-Production-brightgreen)
-![Accuracy](https://img.shields.io/badge/Accuracy-100%25-success)
 ![Version](https://img.shields.io/badge/Version-V3%2FV5-blue)
-
-SKANN-SSL learns vessel signatures directly from raw waveforms using selective-kernel filterbanks and produces robust embeddings for downstream evaluation and inference.
 
 </div>
 
 ---
 
-## 🎯 Project Status (V3/V5 — Production)
+## 🎯 Pipeline stages
 
 ```mermaid
 graph LR
@@ -82,44 +87,15 @@ graph LR
 
 ---
 
-## 🏆 Key Results (V3/V5 — Near-Perfect Classification)
-
-```mermaid
-graph TB
-    subgraph Results["🏆 V3/V5 ACHIEVEMENT SUMMARY"]
-        direction TB
-        
-        subgraph Accuracy["📊 Classification Performance"]
-            A1["🎯 Overall Accuracy<br/><b>100.0%</b><br/>(11,995/12,000)"]
-            A2["📐 Silhouette Score<br/><b>0.9697</b><br/>(cosine distance)"]
-            A3["❌ Total Errors<br/><b>5</b><br/>(out of 12,000)"]
-        end
-        
-        subgraph Model["🧠 Model Specs"]
-            M1["⚙️ Parameters<br/><b>175.9M</b> training<br/><b>~2M</b> inference"]
-            M2["📐 Embedding Dim<br/><b>512</b> backbone<br/><b>256</b> projector"]
-            M3["🎛️ SK Kernels<br/><b>31→1023</b><br/>6 branches"]
-        end
-        
-        subgraph Data["📁 Dataset"]
-            D1["🎵 Clips<br/><b>12,000</b><br/>synthetic"]
-            D2["⏱️ Duration<br/><b>5 sec</b><br/>@ 16kHz"]
-            D3["🚢 Classes<br/><b>5</b><br/>vessel types"]
-        end
-    end
-    
-    style Accuracy fill:#27ae60,stroke:#1e8449,color:#fff
-    style Model fill:#3498db,stroke:#2980b9,color:#fff
-    style Data fill:#9b59b6,stroke:#8e44ad,color:#fff
-```
+## 🏆 Results on the synthetic dataset (V3 model, v5 dataset)
 
 <div align="center">
 
 | Metric | Value |
 |--------|------:|
-| **Overall Accuracy** | **100.0% (11,995/12,000)** |
+| **Overall Accuracy** | **99.96% (11,995 of 12,000; 5 errors)** |
 | **Silhouette Score (cosine)** | **0.9697** |
-| **Classes** | 5 (cargo, fishing, no_vessel, small_craft, tanker) |
+| **Classes** | 4 vessel classes + ambient (no vessel): cargo, fishing, small_craft, tanker; no_vessel |
 | **Total Errors** | 5 |
 | **Model Parameters** | 175.9M (training) / ~2M (inference) |
 | **Embedding Dimension** | 512 (backbone) / 256 (projector) |
@@ -130,6 +106,8 @@ graph TB
 
 </div>
 
+The four vessel classes were synthesised with non-overlapping shaft-rate ranges (see below), so these figures show that the pipeline recovers the designed class structure; they do not measure performance on real recordings.
+
 ---
 
 ## 📈 Version History & Evolution
@@ -139,7 +117,7 @@ graph LR
     subgraph Evolution["📈 ACCURACY EVOLUTION"]
         V1["V1<br/>Dec 2025<br/>━━━━━━━━<br/>78.2%<br/>Baseline"]
         V2["V2.1.0<br/>Jan 2026<br/>━━━━━━━━<br/>~83%<br/>+SK Kernels"]
-        V3["V3/V5<br/>Feb 2026<br/>━━━━━━━━<br/>100.0%<br/>Physics-Correct"]
+        V3["V3/V5<br/>Feb 2026<br/>━━━━━━━━<br/>99.96%<br/>(11,995 of 12,000;<br/>5 errors)<br/>Physics-Correct"]
     end
     
     V1 -->|"+4.8%"| V2 -->|"+17%"| V3
@@ -153,7 +131,7 @@ graph LR
 |---------|------|----------|------------|------------|
 | V1 | Dec 2025 | 78.2% | 0.3997 | Baseline (no SK) |
 | V2.1.0 | Jan 2026 | ~83% | 0.8299 | SK kernels added |
-| **V3/V5** | **Feb 2026** | **100.0%** | **0.9697** | **Physics-correct dataset** |
+| **V3/V5** | **Feb 2026** | **99.96% (11,995 of 12,000; 5 errors)** | **0.9697** | **Physics-correct dataset** |
 
 ---
 
@@ -378,7 +356,7 @@ tanker         0.0    0.0       0.0      0.0   100.0
 
 ---
 
-## 🔬 Why V3/V5 Succeeded
+## 🔬 Why the synthetic classes separate
 
 ```mermaid
 graph TB
@@ -459,7 +437,7 @@ graph LR
 |------------|-------------|
 | [SKANN-SSL](https://github.com/suniltyagi/SKANN-SSL) | Main development repo |
 | [SKANN-SSL-V5-Demo](https://github.com/suniltyagialtair/SKANN-SSL-V5-Demo) | GUI demo application |
-| [Underwater-Acoustic-Synthetic-Dataset](https://github.com/suniltyagialtair/Underwater-Acoustic-Synthetic-Dataset) | V5 dataset (12,000 clips) |
+| [Underwater-Acoustic-Synthetic-Dataset](https://github.com/suniltyagialtair/Underwater-Acoustic-Synthetic-Dataset) | Underwater Acoustic Synthetic Dataset v5.0.0 (12,000 clips; primary download on [Hugging Face](https://huggingface.co/datasets/suniltyagi/underwater-acoustic-synthetic-dataset), DOI [10.57967/hf/11191](https://doi.org/10.57967/hf/11191)) |
 
 ---
 
@@ -480,8 +458,8 @@ graph LR
         direction LR
         
         subgraph Done["✅ COMPLETED"]
-            D1["V3/V5 Training<br/>100% accuracy"]
-            D2["5-class system<br/>+ ambient"]
+            D1["V3/V5 Training<br/>99.96% accuracy<br/>(11,995 of 12,000;<br/>5 errors)"]
+            D2["4 vessel classes<br/>+ ambient (no vessel)"]
             D3["Territory eval"]
             D4["Demo GUI"]
         end
@@ -501,7 +479,7 @@ graph LR
 ```
 
 ### ✅ Completed
-- V3/V5 Physics-aware training (100% accuracy)
+- V3/V5 Physics-aware training: 99.96% accuracy (11,995 of 12,000; 5 errors)
 - 5-class system including ambient noise detection
 - Territory-based evaluation
 - Demo GUI application
@@ -533,12 +511,12 @@ graph LR
 **Data Regime:**
 - V5 synthetic underwater acoustic dataset
 - 12,000 clips, 5 seconds each @ 16kHz
-- 5 vessel classes (including no_vessel/ambient)
+- 4 vessel classes + ambient (no vessel)
 - Non-overlapping shaft rate ranges for acoustic distinguishability
 
 **Evaluation:**
 - Primary metric: **Silhouette score (cosine)** = **0.9697**
-- Classification accuracy: **100.0%** (11,995/12,000)
+- Classification accuracy: **99.96%** (11,995 of 12,000; 5 errors)
 - kNN accuracy: **100%**
 
 **Production Bundle:**
@@ -547,6 +525,13 @@ stages/stage3_ssl/artifacts/SKANN_SSL_V3_Production_Bundle.joblib
 ```
 
 </details>
+
+---
+
+## 📝 How to cite
+
+- **Dataset:** Tyagi, S. (2026). *Underwater Acoustic Synthetic Dataset: Physics-Based Vessel Noise Signatures for Self-Supervised Learning* (v5.0.0). Hugging Face. DOI [10.57967/hf/11191](https://doi.org/10.57967/hf/11191)
+- **SKANN (later work):** Tyagi, S. (2026). *Open-Set Vessel Re-Identification from Underwater Ship-Radiated Noise with a Raw-Waveform Selective-Kernel Acoustic Neural Network (SKANN) and a Cross-Passage Evaluation Protocol*. Preprint, [arXiv:2609.07399](https://arxiv.org/abs/2609.07399)
 
 ---
 
@@ -563,6 +548,6 @@ graph LR
 
 **Made with 🎧 for underwater acoustics research**
 
-*Last updated: February 2026*
+*Last updated: October 2026*
 
 </div>
