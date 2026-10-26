@@ -86,6 +86,7 @@ data/spectrogram_infographic.png
 archive/
 deliverables/
 SKANN_SSL_HANDOVER_BRIEF.md
+CLAUDE.md
 
 # =============================================================================
 # SECTION 2: EXCEPTIONS (ALLOW-LIST) — must come AFTER all ignore rules
