@@ -1,3 +1,5 @@
+Working notes from the V1 pipeline (December 2025), kept for the record and superseded. The current, checked description is at https://suniltyagi.in/notes/synthetic-dataset/.
+
 # SKANN-SSL — Full-Scale System: Diagnostics, Deployment & Deliverables
 
 **Role:** Canonical operational contract for evaluating, deploying, and delivering the full SKANN-SSL system.

@@ -1,3 +1,5 @@
+Working notes from the V1 pipeline (December 2025), kept for the record and superseded. The current, checked description is at https://suniltyagi.in/notes/synthetic-dataset/.
+
 # SKANN-SSL — Ambient Noise Synthesis (Stage −1)
 
 **Role:** Canonical synthesis procedure for generating time-domain ambient-noise waveforms for SKANN.

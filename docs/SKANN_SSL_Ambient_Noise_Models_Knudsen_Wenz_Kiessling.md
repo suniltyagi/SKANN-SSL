@@ -1,3 +1,5 @@
+Working notes from the V1 pipeline (December 2025), kept for the record and superseded. The current, checked description is at https://suniltyagi.in/notes/synthetic-dataset/.
+
 # SKANN-SSL — Ambient Noise Models (Knudsen, Wenz, Kießling)
 
 **Role:** Canonical ambient-noise modelling framework for SKANN synthetic data generation.

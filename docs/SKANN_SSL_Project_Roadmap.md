@@ -1,3 +1,5 @@
+Working notes from the V1 pipeline (December 2025), kept for the record and superseded. The current, checked description is at https://suniltyagi.in/notes/synthetic-dataset/.
+
 # PROJECT ROADMAP  
 ## Hybrid Selective Kernel Self-Supervised Acoustic Representation Learning System
 

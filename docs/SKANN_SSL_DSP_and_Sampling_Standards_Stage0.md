@@ -1,3 +1,5 @@
+Working notes from the V1 pipeline (December 2025), kept for the record and superseded. The current, checked description is at https://suniltyagi.in/notes/synthetic-dataset/.
+
 # SKANN-SSL — DSP & Sampling Standards (Stage 0 Preprocessing)
 
 **Role:** Canonical DSP and preprocessing standards for SKANN Stage 0.

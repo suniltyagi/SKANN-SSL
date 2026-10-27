@@ -1,3 +1,5 @@
+Working notes from the V1 pipeline (December 2025), kept for the record and superseded. The current, checked description is at https://suniltyagi.in/notes/synthetic-dataset/.
+
 # SKANN-SSL — Parametric Sea-Noise Model from Digitised Knudsen Curves
 
 **Role:** Defines the analytic, piecewise parametric sea-noise model used by SKANN, derived from digitised Knudsen curves.

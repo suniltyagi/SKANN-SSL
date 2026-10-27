@@ -1,3 +1,5 @@
+Working notes from the V1 pipeline (December 2025), kept for the record and superseded. The current, checked description is at https://suniltyagi.in/notes/synthetic-dataset/.
+
 # SKANN-SSL — Underwater Acoustics Foundations
 
 **Role:** Foundational physical and mathematical constraints for SKANN-SSL.
