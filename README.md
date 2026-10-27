@@ -94,7 +94,7 @@ graph LR
 
 | Metric | Value |
 |--------|------:|
-| **Overall Accuracy** | **99.96% (11,995 of 12,000; 5 errors)** |
+| **Nearest-centroid accuracy (training clips)** | **99.96% (11,995 of 12,000)** |
 | **Silhouette Score (cosine)** | **0.9697** |
 | **Classes** | 4 vessel classes + ambient (no vessel): cargo, fishing, small_craft, tanker; no_vessel |
 | **Total Errors** | 5 |
@@ -107,6 +107,8 @@ graph LR
 
 </div>
 
+99.96% (11,995 of 12,000) nearest-centroid accuracy on the same synthetic clips used for training. It shows the five classes separate cleanly in the embedding space; it is not a test on unseen clips or real recordings.
+
 **Easy by construction.** The four vessel classes were synthesised with disjoint shaft-rate ranges (see below), and every vessel clip has a fixed +6 dB signal-to-noise ratio; together these make the classes cleanly separable. These figures show that the pipeline recovers the designed class structure. High accuracy here says little about performance at sea.
 
 ---
@@ -118,7 +120,7 @@ graph LR
     subgraph Evolution["📈 ACCURACY EVOLUTION"]
         V1["V1<br/>Dec 2025<br/>━━━━━━━━<br/>78.2%<br/>Baseline"]
         V2["V2.1.0<br/>Jan 2026<br/>━━━━━━━━<br/>~83%<br/>+SK Kernels"]
-        V3["V3/V5<br/>Feb 2026<br/>━━━━━━━━<br/>99.96%<br/>(11,995 of 12,000;<br/>5 errors)<br/>Physics-Correct"]
+        V3["V3/V5<br/>Feb 2026<br/>━━━━━━━━<br/>99.96%<br/>(11,995 of 12,000)<br/>on training clips<br/>Physics-Correct"]
     end
     
     V1 -->|"+4.8%"| V2 -->|"+17%"| V3
@@ -132,7 +134,7 @@ graph LR
 |---------|------|----------|------------|------------|
 | V1 | Dec 2025 | 78.2% | 0.3997 | Baseline (no SK) |
 | V2.1.0 | Jan 2026 | ~83% | 0.8299 | SK kernels added |
-| **V3/V5** | **Feb 2026** | **99.96% (11,995 of 12,000; 5 errors)** | **0.9697** | **Physics-correct dataset** |
+| **V3/V5** | **Feb 2026** | **99.96% (11,995 of 12,000), on the training clips** | **0.9697** | **Physics-correct dataset** |
 
 ---
 
@@ -459,7 +461,7 @@ graph LR
         direction LR
         
         subgraph Done["✅ COMPLETED"]
-            D1["V3/V5 Training<br/>99.96% accuracy<br/>(11,995 of 12,000;<br/>5 errors)"]
+            D1["V3/V5 Training<br/>99.96% nearest-centroid<br/>accuracy on training clips<br/>(11,995 of 12,000)"]
             D2["4 vessel classes<br/>+ ambient (no vessel)"]
             D3["Territory eval"]
             D4["Demo GUI"]
@@ -480,7 +482,7 @@ graph LR
 ```
 
 ### ✅ Completed
-- V3/V5 Physics-aware training: 99.96% accuracy (11,995 of 12,000; 5 errors)
+- V3/V5 Physics-aware training: 99.96% (11,995 of 12,000) nearest-centroid accuracy on the same synthetic clips used for training
 - 5-class system including ambient noise detection
 - Territory-based evaluation
 - Demo GUI application
@@ -517,7 +519,7 @@ graph LR
 
 **Evaluation:**
 - Primary metric: **Silhouette score (cosine)** = **0.9697**
-- Classification accuracy: **99.96%** (11,995 of 12,000; 5 errors)
+- Classification: 99.96% (11,995 of 12,000) nearest-centroid accuracy on the same synthetic clips used for training. It shows the five classes separate cleanly in the embedding space; it is not a test on unseen clips or real recordings.
 - kNN accuracy: **100%**
 
 **Production Bundle:**
