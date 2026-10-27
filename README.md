@@ -1,6 +1,6 @@
 # SKANN-SSL: Selective-Kernel Acoustic Neural Network with Self-Supervised Learning
 
-SKANN-SSL is an earlier research repository (2025 to early 2026) by Capt (Dr) Sunil Tyagi at Oravont Systems LLP, Noida, India. It pretrains a selective-kernel filterbank on the raw underwater acoustic waveform with self-supervised learning (Barlow Twins), on the 12,000-clip Underwater Acoustic Synthetic Dataset, for vessel detection and classification.
+SKANN-SSL is an earlier research repository (2025 to early 2026) by Capt (Dr) Sunil Tyagi at Oravont Systems LLP, Noida, India. It pretrains a selective-kernel filterbank on the raw underwater acoustic waveform with the Barlow Twins self-supervised objective, with training pairs drawn within each class, on the 12,000-clip Underwater Acoustic Synthetic Dataset, for vessel detection and classification.
 
 **Status:** research code, trained and evaluated on synthetic data; not yet validated on real hydrophone recordings. Sunil Tyagi's later work, SKANN, is described in the preprint [arXiv:2609.07399](https://arxiv.org/abs/2609.07399), with its checkpoint and evaluation files on Zenodo ([doi:10.5281/zenodo.22160137](https://doi.org/10.5281/zenodo.22160137)).
 
@@ -507,7 +507,7 @@ graph LR
 - Single GPU training
 
 **Training Regime:**
-- Self-supervised learning using **Barlow Twins**
+- **Barlow Twins** self-supervised objective, with training pairs drawn within each class
 - Physics-aware **Selective Kernel (SK) filterbank**
 - 51 epochs, batch size 4
 
