@@ -8,7 +8,7 @@ SKANN-SSL is an earlier research repository (2025 to early 2026) by Capt (Dr) Su
 - SKANN overview: [oravontsystems.com/deep-learning/skann/](https://oravontsystems.com/deep-learning/skann/)
 - Training data: [Underwater Acoustic Synthetic Dataset](https://huggingface.co/datasets/suniltyagi/underwater-acoustic-synthetic-dataset) (v5.0.0, DOI [10.57967/hf/11191](https://doi.org/10.57967/hf/11191), CC BY 4.0). The dataset is a separate item, hosted on Hugging Face; it is not on Zenodo.
 - Version names: V3 is the model version; v5 is the dataset version.
-- Licence: Research code; contact for licensing: [info@oravontsystems.com](mailto:info@oravontsystems.com).
+- Licence: Research code; contact for licensing: [styagi@oravontsystems.com](mailto:styagi@oravontsystems.com).
 
 > Not to be confused with Shan et al. (2025), "SKANN: Selective kernel audio neural networks for underwater mixed ship event detection" ([doi:10.1049/cit2.70037](https://doi.org/10.1049/cit2.70037)), which shares the acronym and the selective-kernel fusion but differs in input, task and evaluation.
 
