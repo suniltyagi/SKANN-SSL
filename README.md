@@ -353,7 +353,7 @@ small          0.0    0.0       0.0    100.0     0.0
 tanker         0.0    0.0       0.0      0.0   100.0
 ```
 
-⚠️ **Only 5 errors** across 12,000 clips:
+⚠️ **Only 5 errors** across 12,000 clips, measured on the same synthetic clips used for training, not on unseen clips or real recordings:
 - 4× cargo_ship → fishing_vessel
 - 1× fishing_vessel → small_craft
 
@@ -520,7 +520,7 @@ graph LR
 **Evaluation:**
 - Primary metric: **Silhouette score (cosine)** = **0.9697**
 - Classification: 99.96% (11,995 of 12,000) nearest-centroid accuracy on the same synthetic clips used for training. It shows the five classes separate cleanly in the embedding space; it is not a test on unseen clips or real recordings.
-- kNN accuracy: **100%**
+- kNN accuracy: **100%**, measured on the same synthetic clips used for training, not on unseen clips or real recordings
 
 **Production Bundle:**
 ```
